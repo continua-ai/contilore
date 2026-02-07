@@ -1,4 +1,4 @@
-# Continua Loop
+# Contilore
 
 Trace-driven learning loop for coding agents.
 
@@ -10,7 +10,7 @@ high-confidence hints back into future runs.
 Agentic coding burns time and tokens on repeated dead ends. This is amplified
 across many concurrent agents and teammates.
 
-Continua Loop turns traces into reusable learning artifacts:
+Contilore turns traces into reusable learning artifacts:
 
 - **anti-patterns** (what to avoid)
 - **happy paths** (what tends to work)
@@ -51,9 +51,9 @@ alternative task runner (`bun run ...`) when available.
 ## Quick usage
 
 ```ts
-import { createLocalLearningLoop } from "@continua-ai/continua-loop";
+import { createLocalLearningLoop } from "@continua-ai/contilore";
 
-const loop = createLocalLearningLoop({ dataDir: ".continua-loop" });
+const loop = createLocalLearningLoop({ dataDir: ".contilore" });
 
 await loop.ingest({
   id: crypto.randomUUID(),
@@ -82,10 +82,27 @@ The pi adapter is intentionally thin and uses a pi-like event API contract.
 import {
   createLocalLearningLoop,
   createPiTraceExtension,
-} from "@continua-ai/continua-loop";
+} from "@continua-ai/contilore";
 
 const loop = createLocalLearningLoop();
 export default createPiTraceExtension({ loop });
+```
+
+## Project naming is parameterized
+
+Brand-specific identifiers are centralized in `src/core/projectIdentity.ts` and
+can be overridden per integration:
+
+```ts
+import { createLocalLearningLoop } from "@continua-ai/contilore";
+
+const loop = createLocalLearningLoop({
+  projectIdentity: {
+    displayName: "YourNewName",
+    defaultDataDirName: ".yournewname",
+    extensionCustomType: "yournewname",
+  },
+});
 ```
 
 ## Architecture docs

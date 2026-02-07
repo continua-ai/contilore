@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { LearningLoop } from "../../core/learningLoop.js";
+import {
+  type ProjectIdentityOverrides,
+  resolveProjectIdentity,
+} from "../../core/projectIdentity.js";
 import type { TraceScope } from "../../core/types.js";
 import type {
   PiBeforeAgentStartEvent,
@@ -22,6 +26,8 @@ export interface PiTraceExtensionOptions {
   harnessName?: string;
   agentId?: string;
   maxSuggestions?: number;
+  customMessageType?: string;
+  projectIdentity?: ProjectIdentityOverrides;
 }
 
 function nowIso(): string {
@@ -65,6 +71,9 @@ export function createPiTraceExtension(
   const harness = options.harnessName ?? "pi";
   const agentId = options.agentId;
   const maxSuggestions = options.maxSuggestions ?? 3;
+  const projectIdentity = resolveProjectIdentity(options.projectIdentity);
+  const customMessageType =
+    options.customMessageType ?? projectIdentity.extensionCustomType;
 
   const sessionId = randomUUID();
   const turnStartTimes = new Map<number, number>();
@@ -211,7 +220,7 @@ export function createPiTraceExtension(
 
       return {
         message: {
-          customType: "continua-loop",
+          customType: customMessageType,
           content: `Prior trace hints:\n${rendered}`,
           display: true,
         },

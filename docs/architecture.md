@@ -1,6 +1,6 @@
 # Architecture
 
-Continua Loop is intentionally split into pluggable layers.
+Contilore is intentionally split into pluggable layers.
 
 ## Design goals
 
