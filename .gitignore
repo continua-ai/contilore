@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.tmp/
+.continua-loop/
+.DS_Store
+*.log
