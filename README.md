@@ -248,6 +248,11 @@ Working mascot: raccoon + loop ring.
 
 See `docs/brand-guidelines.md` for current logo/asset variants.
 
+## Credits
+
+Made with care by [David Petrou (@dpetrou)](https://x.com/dpetrou) and
+collaborators at [Continua AI](https://continua.ai).
+
 ## License
 
 Apache-2.0 (see `LICENSE`).
