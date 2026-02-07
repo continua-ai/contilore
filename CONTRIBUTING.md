@@ -4,6 +4,15 @@ Thanks for contributing to Happy Paths.
 
 ## Local setup
 
+Preferred (Bun-first local development):
+
+```bash
+bun install
+bun run verify
+```
+
+Node/npm remains fully supported:
+
 ```bash
 npm install
 npm run verify
@@ -12,12 +21,12 @@ npm run verify
 ## Common commands
 
 ```bash
-npm run format
-npm run lint
-npm run typecheck
-npm run test
-npm run guardrails
-npm run build
+bun run format
+bun run lint
+bun run typecheck
+bun run test
+bun run guardrails
+bun run build
 ```
 
 ## Development principles

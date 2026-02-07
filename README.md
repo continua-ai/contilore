@@ -117,12 +117,19 @@ skills.sh, but with automatic trace-driven extraction and curation).
 
 ## Install
 
+Preferred (Bun-first local development):
+
+```bash
+bun install
+bun run verify
+```
+
+Node/npm remains fully supported:
+
 ```bash
 npm install
 npm run verify
 ```
-
-Optional: Bun is supported as a task runner, but Node/npm remain the baseline.
 
 ## Quick usage
 
