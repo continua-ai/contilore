@@ -35,6 +35,7 @@ Early scaffold / MVP foundations:
 - basic wrong-turn miner
 - pi adapter hook layer
 - metrics helpers (correctness + wall time + cost + token proxy)
+- end-to-end wrong-turn evaluation flow with hit@k + MRR quality metrics
 
 ## Install
 
@@ -105,10 +106,31 @@ const loop = createLocalLearningLoop({
 });
 ```
 
+## End-to-end wrong-turn evaluation
+
+Use the built-in evaluator to measure suggestion quality and efficiency from
+captured traces:
+
+```ts
+import {
+  buildWrongTurnScenarioFromTemplate,
+  createLocalLearningLoop,
+  evaluateWrongTurnScenarios,
+} from "@continua-ai/contilore";
+
+const scenario = buildWrongTurnScenarioFromTemplate(/* ... */);
+const report = await evaluateWrongTurnScenarios([scenario], () => {
+  return createLocalLearningLoop();
+});
+```
+
+See `examples/wrong-turn-evaluation.ts`.
+
 ## Architecture docs
 
 - `docs/architecture.md`
 - `docs/metrics.md`
+- `docs/wrong-turn-flow.md`
 - `docs/engineering-practices.md`
 
 ## CI and guardrails

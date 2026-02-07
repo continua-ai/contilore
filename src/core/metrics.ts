@@ -1,4 +1,4 @@
-import type { TokenUsage } from "./types.js";
+import type { TokenUsage, TraceEvent } from "./types.js";
 
 export interface RunOutcome {
   wallTimeMs: number;
@@ -64,6 +64,18 @@ export function compareOutcomes(
   };
 }
 
+function mergeTokenUsage(total: TokenUsage, incoming?: TokenUsage): void {
+  if (!incoming) {
+    return;
+  }
+
+  total.inputUncached = (total.inputUncached ?? 0) + (incoming.inputUncached ?? 0);
+  total.inputCached = (total.inputCached ?? 0) + (incoming.inputCached ?? 0);
+  total.output = (total.output ?? 0) + (incoming.output ?? 0);
+  total.thinking = (total.thinking ?? 0) + (incoming.thinking ?? 0);
+  total.cacheWrite = (total.cacheWrite ?? 0) + (incoming.cacheWrite ?? 0);
+}
+
 export function aggregate(outcomes: RunOutcome[]): RunOutcome {
   if (outcomes.length === 0) {
     return {
@@ -86,17 +98,7 @@ export function aggregate(outcomes: RunOutcome[]): RunOutcome {
     wallTimeMs += outcome.wallTimeMs;
     retries += outcome.retries;
     costUsd += outcome.costUsd;
-
-    aggregateTokens.inputUncached =
-      (aggregateTokens.inputUncached ?? 0) + (outcome.tokens.inputUncached ?? 0);
-    aggregateTokens.inputCached =
-      (aggregateTokens.inputCached ?? 0) + (outcome.tokens.inputCached ?? 0);
-    aggregateTokens.output =
-      (aggregateTokens.output ?? 0) + (outcome.tokens.output ?? 0);
-    aggregateTokens.thinking =
-      (aggregateTokens.thinking ?? 0) + (outcome.tokens.thinking ?? 0);
-    aggregateTokens.cacheWrite =
-      (aggregateTokens.cacheWrite ?? 0) + (outcome.tokens.cacheWrite ?? 0);
+    mergeTokenUsage(aggregateTokens, outcome.tokens);
   }
 
   return {
@@ -105,5 +107,48 @@ export function aggregate(outcomes: RunOutcome[]): RunOutcome {
     retries,
     costUsd,
     tokens: aggregateTokens,
+  };
+}
+
+export function deriveRunOutcomeFromEvents(events: TraceEvent[]): RunOutcome {
+  if (events.length === 0) {
+    return {
+      wallTimeMs: 0,
+      success: true,
+      retries: 0,
+      costUsd: 0,
+      tokens: {},
+    };
+  }
+
+  const tokens: TokenUsage = {};
+  let wallTimeMs = 0;
+  let costUsd = 0;
+  let retries = 0;
+  let lastObservedOutcome: boolean | undefined;
+
+  for (const event of events) {
+    wallTimeMs += event.metrics?.latencyMs ?? 0;
+    costUsd += event.metrics?.cost?.usd ?? 0;
+    mergeTokenUsage(tokens, event.metrics?.tokens);
+
+    if (event.type === "tool_result" && event.metrics?.outcome === "failure") {
+      retries += 1;
+    }
+
+    if (event.metrics?.outcome === "success") {
+      lastObservedOutcome = true;
+    }
+    if (event.metrics?.outcome === "failure") {
+      lastObservedOutcome = false;
+    }
+  }
+
+  return {
+    wallTimeMs,
+    success: lastObservedOutcome ?? true,
+    retries,
+    costUsd,
+    tokens,
   };
 }

@@ -6,6 +6,7 @@
 - local storage/index defaults
 - basic wrong-turn miner
 - pi adapter
+- end-to-end wrong-turn evaluator (capture -> retrieval -> quality metrics)
 
 ## Phase 1
 

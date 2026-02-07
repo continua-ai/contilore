@@ -6,6 +6,7 @@ export * from "./core/metrics.js";
 export * from "./core/miner.js";
 export * from "./core/learningLoop.js";
 export * from "./core/projectIdentity.js";
+export * from "./core/wrongTurnEvaluation.js";
 
 export * from "./backends/local/index.js";
 

@@ -61,6 +61,17 @@ Future miners should use stronger signals:
 - eventual success checks (tests/lint/typecheck)
 - cross-session clustering
 
+### 5) Evaluation and quality gating
+
+`wrongTurnEvaluation` provides end-to-end measurement for:
+
+- capture + ingest
+- retrieval + suggestion generation
+- quality metrics (hit@k, MRR)
+- efficiency rollups (wall time, cost, token proxy)
+
+Quality gates can block regressions before rollout.
+
 ## Why lexical-first
 
 Large raw trace corpora are noisy and expensive for fully semantic retrieval.
