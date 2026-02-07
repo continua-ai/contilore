@@ -1,6 +1,6 @@
 # Architecture
 
-Contilore is intentionally split into pluggable layers.
+Happy Paths is intentionally split into pluggable layers.
 
 ## Design goals
 

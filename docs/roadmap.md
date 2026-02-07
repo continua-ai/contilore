@@ -18,12 +18,14 @@
 
 - optional vector backend plugin
 - optional reranker plugin
+- path matcher service (intent + context aware retrieval)
 - batch/offline mining jobs
 
 ## Phase 3
 
 - team scope with explicit sharing controls
 - artifact review workflow before publish
+- trust/safety pipeline for shared paths (policy checks + sandbox replay)
 - public playbook export format
 
 ## Phase 4

@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 function parseArgs(argv) {
   const options = {
     dataset: "testdata/wrong_turn_dataset.json",
-    dataDir: ".contilore/eval-run",
+    dataDir: ".happy-paths/eval-run",
     strict: false,
     json: false,
     harness: "pi",

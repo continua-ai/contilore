@@ -15,11 +15,11 @@ export interface ProjectIdentityOverrides {
 }
 
 export const DEFAULT_PROJECT_IDENTITY: ProjectIdentity = Object.freeze({
-  displayName: "Contilore",
-  slug: "contilore",
-  npmPackageName: "@continua-ai/contilore",
-  defaultDataDirName: ".contilore",
-  extensionCustomType: "contilore",
+  displayName: "Happy Paths",
+  slug: "happy-paths",
+  npmPackageName: "@continua-ai/happy-paths",
+  defaultDataDirName: ".happy-paths",
+  extensionCustomType: "happy_paths",
 });
 
 export function resolveProjectIdentity(

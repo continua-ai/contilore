@@ -31,6 +31,8 @@ Use quality gates so efficiency changes cannot silently degrade correctness.
 - p50/p95 wall time to green
 - retries per successful task
 - provider-reported USD cost
+- expensive tool/runtime spend (e.g., long-running local tools, test suites)
+- CI workflow cost/latency (job minutes, reruns, queue delays)
 
 ## Token proxy (when USD is unavailable)
 

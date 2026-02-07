@@ -69,7 +69,7 @@ const scenario = buildWrongTurnScenarioFromTemplate(
 
 const report = await evaluateWrongTurnScenarios([scenario], () => {
   return createLocalLearningLoop({
-    dataDir: join(process.cwd(), ".contilore", "example-eval"),
+    dataDir: join(process.cwd(), ".happy-paths", "example-eval"),
   });
 });
 

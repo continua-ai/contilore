@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to Contilore.
+Thanks for contributing to Happy Paths.
 
 ## Local setup
 

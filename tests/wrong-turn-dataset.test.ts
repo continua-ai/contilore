@@ -56,7 +56,7 @@ describe("wrong-turn dataset", () => {
   it("evaluates dataset and applies configured quality gate", async () => {
     const dataset = await readDatasetFixture();
 
-    const root = await mkdtemp(join(tmpdir(), "contilore-dataset-"));
+    const root = await mkdtemp(join(tmpdir(), "happy-paths-dataset-"));
     tempDirs.push(root);
 
     let index = 0;

@@ -1,5 +1,5 @@
 {
-  "name": "@continua-ai/contilore",
+  "name": "@continua-ai/happy-paths",
   "version": "0.1.0",
   "description": "Trace-driven learning loop for coding agents: capture, index, mine wrong turns, and share happy paths.",
   "license": "Apache-2.0",
@@ -26,12 +26,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/continua-ai/contilore.git"
+    "url": "git+https://github.com/continua-ai/happy-paths.git"
   },
   "bugs": {
-    "url": "https://github.com/continua-ai/contilore/issues"
+    "url": "https://github.com/continua-ai/happy-paths/issues"
   },
-  "homepage": "https://github.com/continua-ai/contilore#readme",
+  "homepage": "https://github.com/continua-ai/happy-paths#readme",
   "keywords": ["agent", "llm", "retrieval", "trace", "pi", "continua"],
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

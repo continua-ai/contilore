@@ -1,42 +1,119 @@
-# Contilore
+# 🦝 Happy Paths
 
-Trace-driven learning loop for coding agents.
+<p align="center">
+  <img src="assets/brand/happy-paths-mascot-ring-purple.png" alt="Happy Paths mascot logo" width="220" />
+</p>
 
-Capture agent traces, index them quickly, mine wrong-turn corrections, and feed
-high-confidence hints back into future runs.
+<p align="center">
+  <strong>The one weird trick your costly LLM provider wishes you didn't know:</strong><br/>
+  stop paying repeatedly for the same wrong turns.
+</p>
+
+<p align="center">
+  <a href="https://github.com/continua-ai/happy-paths/actions/workflows/ci.yml">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/continua-ai/happy-paths/ci.yml?branch=main&style=for-the-badge" />
+  </a>
+  <a href="LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge" />
+  </a>
+  <img alt="TypeScript" src="https://img.shields.io/badge/Built%20with-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+</p>
+
+<p align="center">
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/wrong-turn-flow.md">Wrong-turn flow</a> ·
+  <a href="docs/metrics.md">Metrics</a> ·
+  <a href="docs/roadmap.md">Roadmap</a>
+</p>
+
+---
+
+Happy Paths is a trace-driven learning loop for coding agents.
+
+It captures agent traces, indexes them quickly, mines wrong-turn corrections,
+and feeds high-confidence guidance back into future runs.
 
 ## Why this exists
 
-Agentic coding burns time and tokens on repeated dead ends. This is amplified
-across many concurrent agents and teammates.
+Pi (and other extensible coding harnesses) lets you improve your process by
+adding skills, extensions, and tooling.
 
-Contilore turns traces into reusable learning artifacts:
+That is powerful — but **figuring out when and how to extend your harness is
+itself expensive and noisy**.
 
-- **anti-patterns** (what to avoid)
-- **happy paths** (what tends to work)
-- **playbooks** (small, reviewable recipes)
+Happy Paths automates that learning loop:
 
-## Principles
+- detect repeated wrong turns,
+- find corrections that worked,
+- propose reusable playbooks/skills,
+- improve future runs automatically.
+
+## The story arc
+
+### 1) Single engineer, single agent
+
+One agent repeats avoidable dead-ends. You burn time and tokens.
+
+### 2) Single engineer, many agents
+
+Now 5–10 concurrent agents repeat each other's mistakes. Waste compounds.
+
+### 3) Teams
+
+Different engineers rediscover the same fixes. Org-level costs rise.
+
+### 4) The world
+
+Natural extension: opt-in global crowdsourcing of learned happy paths (think
+skills.sh, but with automatic trace-driven extraction and curation).
+
+<table>
+  <tbody>
+    <tr>
+      <td><img src="assets/marketing/single-agent.png" alt="Single engineer single agent" width="360" /></td>
+      <td><img src="assets/marketing/multi-agent-single-engineer.png" alt="Single engineer multiple agents" width="360" /></td>
+    </tr>
+    <tr>
+      <td><img src="assets/marketing/team-learning-network.png" alt="Team learning network" width="360" /></td>
+      <td><img src="assets/marketing/world-crowdsource.png" alt="Global crowdsourced learning" width="360" /></td>
+    </tr>
+  </tbody>
+</table>
+
+> Visuals above are auto-generated concept illustrations for storytelling.
+
+## Core principles
 
 - **Correctness first**: never trade reliability for speed/cost.
-- **Lexical-first retrieval**: signatures + BM25-style behavior before heavy
-  semantic indexing.
-- **Out-of-the-box local mode**: no mandatory external DB/vector service.
-- **Pluggable architecture**: harness adapters and storage/index backends are
-  replaceable.
+- **Lexical-first retrieval**: signatures + exact/near-exact matching before heavy semantics.
+- **Local-first default**: no required external DB/vector dependencies.
+- **Pluggable everything**: harness adapters + index/store backends are replaceable.
 
-## Current status
+## How Happy Paths works
 
-Early scaffold / MVP foundations:
+1. **Capture**
+   - Normalize agent/tool events into `TraceEvent`.
+2. **Index**
+   - Build lexical documents/signatures immediately.
+   - Optionally combine lexical + semantic indexes via fusion.
+3. **Mine**
+   - Detect wrong-turn -> correction arcs.
+4. **Augment**
+   - Surface suggestions before/while agents run.
+   - Promote high-confidence patterns into reusable skills/playbooks.
 
-- normalized trace schema
+## What exists now (on `main`)
+
+- normalized trace schema + core interfaces
 - local JSONL trace store
 - in-memory lexical index
 - optional composite index (lexical + semantic fusion)
-- basic wrong-turn miner
-- pi adapter hook layer
-- metrics helpers (correctness + wall time + cost + token proxy)
-- end-to-end wrong-turn evaluation flow with hit@k + MRR quality metrics
+- wrong-turn miner
+- pi adapter hooks
+- local bootstrap from persisted traces across sessions
+- end-to-end wrong-turn evaluator (hit@1, hit@3, MRR)
+- dataset-based quality gate in CI
+- source-size guardrails in CI
 
 ## Install
 
@@ -45,17 +122,14 @@ npm install
 npm run verify
 ```
 
-### Optional: Bun
-
-This repo is TypeScript-first and Node-compatible. Bun can be used as an
-alternative task runner (`bun run ...`) when available.
+Optional: Bun is supported as a task runner, but Node/npm remain the baseline.
 
 ## Quick usage
 
 ```ts
-import { createLocalLearningLoop } from "@continua-ai/contilore";
+import { createLocalLearningLoop } from "@continua-ai/happy-paths";
 
-const loop = createLocalLearningLoop({ dataDir: ".contilore" });
+const loop = createLocalLearningLoop({ dataDir: ".happy-paths" });
 
 await loop.ingest({
   id: crypto.randomUUID(),
@@ -76,39 +150,37 @@ const hits = await loop.retrieve({ text: "cannot find module" });
 console.log(hits[0]);
 ```
 
-To rehydrate retrieval/mining state from persisted local traces at startup:
+### Rehydrate from persisted local traces
 
 ```ts
-import { initializeLocalLearningLoop } from "@continua-ai/contilore";
+import { initializeLocalLearningLoop } from "@continua-ai/happy-paths";
 
 const initialized = await initializeLocalLearningLoop({
-  dataDir: ".contilore",
+  dataDir: ".happy-paths",
 });
 
 console.log(initialized.bootstrap.eventCount);
 ```
 
-## pi adapter
-
-The pi adapter is intentionally thin and uses a pi-like event API contract.
+### pi adapter
 
 ```ts
 import {
   createLocalLearningLoop,
   createPiTraceExtension,
-} from "@continua-ai/contilore";
+} from "@continua-ai/happy-paths";
 
 const loop = createLocalLearningLoop();
 export default createPiTraceExtension({ loop });
 ```
 
-## Project naming is parameterized
+## Naming is parameterized (rebrand-friendly)
 
 Brand-specific identifiers are centralized in `src/core/projectIdentity.ts` and
-can be overridden per integration:
+can be overridden per integration.
 
 ```ts
-import { createLocalLearningLoop } from "@continua-ai/contilore";
+import { createLocalLearningLoop } from "@continua-ai/happy-paths";
 
 const loop = createLocalLearningLoop({
   projectIdentity: {
@@ -119,48 +191,55 @@ const loop = createLocalLearningLoop({
 });
 ```
 
-## End-to-end wrong-turn evaluation
+## Metrics and CI quality gate
 
-Use the built-in evaluator to measure suggestion quality and efficiency from
-captured traces:
-
-```ts
-import {
-  buildWrongTurnScenarioFromTemplate,
-  createLocalLearningLoop,
-  evaluateWrongTurnScenarios,
-} from "@continua-ai/contilore";
-
-const scenario = buildWrongTurnScenarioFromTemplate(/* ... */);
-const report = await evaluateWrongTurnScenarios([scenario], () => {
-  return createLocalLearningLoop();
-});
-```
-
-See `examples/wrong-turn-evaluation.ts`.
-
-A dataset-driven gate is also included (`testdata/wrong_turn_dataset.json`):
+Dataset fixture: `testdata/wrong_turn_dataset.json`
 
 ```bash
 npm run test:wrong-turn-gate
+npm run eval:wrong-turn
 ```
 
-This provides a CI-friendly quality floor for hit@k and MRR.
+CI enforces this gate so suggestion quality remains visible while iterating on
+speed/cost optimizations.
 
-## Architecture docs
+Beyond LLM token/cost savings, Happy Paths also tracks expensive execution
+surfaces (long-running tools, test suites, CI workflows) so optimization can
+target total engineering throughput, not model spend alone.
 
-- `docs/architecture.md`
-- `docs/metrics.md`
-- `docs/wrong-turn-flow.md`
-- `docs/engineering-practices.md`
+## Hosted vision
 
-## CI and guardrails
+We intend to support hosted, opt-in sharing:
 
-CI runs:
+- personal scope -> team scope -> global scope,
+- with privacy controls and artifact review,
+- so learned agent improvements can be published and reused at internet scale.
 
-- lint + typecheck + tests
-- wrong-turn dataset quality gate (`npm run eval:wrong-turn`)
-- source-file-size guardrails
+## Icon and shorthand
+
+Working mascot: raccoon + loop ring.
+
+- image variants: `assets/brand/`
+- unicode shorthand (temporary): `🦝◌`
+
+### Brand concept variants
+
+<table>
+  <tbody>
+    <tr>
+      <td align="center"><strong>Primary Happy Paths mark</strong></td>
+      <td align="center"><strong>Continua-inspired variant</strong></td>
+    </tr>
+    <tr>
+      <td><img src="assets/brand/happy-paths-mascot-ring-purple.png" alt="Primary Happy Paths mark" width="180" /></td>
+      <td><img src="assets/brand/happy-paths-continua-peek.png" alt="Continua-inspired Happy Paths variant" width="180" /></td>
+    </tr>
+  </tbody>
+</table>
+
+## Brand notes
+
+See `docs/brand-guidelines.md` for current logo/asset variants.
 
 ## License
 
