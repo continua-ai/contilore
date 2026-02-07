@@ -54,7 +54,7 @@ describe("project identity", () => {
   });
 
   it("uses identity default data directory for local loop", async () => {
-    const rootDir = await mkdtemp(join(tmpdir(), "contilore-identity-"));
+    const rootDir = await mkdtemp(join(tmpdir(), "happy-paths-identity-"));
     tempDirs.push(rootDir);
 
     const previousCwd = process.cwd();
@@ -94,7 +94,7 @@ describe("project identity", () => {
   });
 
   it("uses identity custom message type in pi extension", async () => {
-    const dataDir = await mkdtemp(join(tmpdir(), "contilore-extension-"));
+    const dataDir = await mkdtemp(join(tmpdir(), "happy-paths-extension-"));
     tempDirs.push(dataDir);
 
     const loop = createLocalLearningLoop({ dataDir });

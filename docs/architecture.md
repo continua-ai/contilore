@@ -1,6 +1,6 @@
 # Architecture
 
-Contilore is intentionally split into pluggable layers.
+Happy Paths is intentionally split into pluggable layers.
 
 ## Design goals
 
@@ -66,7 +66,7 @@ Future miners should use stronger signals:
 - eventual success checks (tests/lint/typecheck)
 - cross-session clustering
 
-### 5) Evaluation and quality gating
+### 5) Evaluation, quality gating, and adaptive rollout
 
 `wrongTurnEvaluation` provides end-to-end measurement for:
 
@@ -76,6 +76,15 @@ Future miners should use stronger signals:
 - efficiency rollups (wall time, cost, token proxy)
 
 Quality gates can block regressions before rollout.
+
+`src/core/pathLifecycle.ts` now provides a baseline lifecycle schema and helpers
+for version assignment + canary decisions:
+
+- `HappyPathArtifact` / `HappyPathVersion`
+- deterministic canary assignment (`assignPathVersion`)
+- promotion/rollback/hold evaluation (`decideCanaryAction`)
+
+This enables staged rollout of new paths before broad promotion.
 
 ## Why lexical-first
 

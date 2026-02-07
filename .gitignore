@@ -3,6 +3,7 @@ dist/
 coverage/
 .tmp/
 .contilore/
+.happy-paths/
 .continua-loop/
 .DS_Store
 *.log

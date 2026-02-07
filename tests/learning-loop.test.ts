@@ -21,7 +21,7 @@ afterEach(async () => {
 
 describe("LearningLoop", () => {
   it("ingests, retrieves, and suggests", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "contilore-"));
+    const dir = await mkdtemp(join(tmpdir(), "happy-paths-"));
     tempDirs.push(dir);
 
     const loop = new LearningLoop({

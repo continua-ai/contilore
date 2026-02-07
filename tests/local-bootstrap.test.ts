@@ -21,7 +21,7 @@ afterEach(async () => {
 
 describe("local bootstrap", () => {
   it("rebuilds index and miner state from stored trace events", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "contilore-bootstrap-"));
+    const dir = await mkdtemp(join(tmpdir(), "happy-paths-bootstrap-"));
     tempDirs.push(dir);
 
     const writerLoop = createLocalLearningLoop({ dataDir: dir });
@@ -89,7 +89,7 @@ describe("local bootstrap", () => {
   });
 
   it("initializes local loop with bootstrap enabled by default", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "contilore-init-bootstrap-"));
+    const dir = await mkdtemp(join(tmpdir(), "happy-paths-init-bootstrap-"));
     tempDirs.push(dir);
 
     const writerLoop = createLocalLearningLoop({ dataDir: dir });

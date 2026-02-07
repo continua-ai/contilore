@@ -1,5 +1,5 @@
 {
-  "name": "@continua-ai/contilore",
+  "name": "@continua-ai/happy-paths",
   "version": "0.1.0",
   "description": "Trace-driven learning loop for coding agents: capture, index, mine wrong turns, and share happy paths.",
   "license": "Apache-2.0",
@@ -10,6 +10,7 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "packageManager": "bun@1.2.22",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
@@ -19,19 +20,19 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:wrong-turn-gate": "vitest run tests/wrong-turn-dataset.test.ts",
-    "eval:wrong-turn": "npm run build && node scripts/run-wrong-turn-eval.mjs --strict",
+    "eval:wrong-turn": "tsc -p tsconfig.build.json && node scripts/run-wrong-turn-eval.mjs --strict",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm run test",
-    "verify:ci": "npm run verify && npm run guardrails"
+    "verify": "biome check . && tsc --noEmit && vitest run",
+    "verify:ci": "biome check . && tsc --noEmit && vitest run && node scripts/check-large-source-files.mjs"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/continua-ai/contilore.git"
+    "url": "git+https://github.com/continua-ai/happy-paths.git"
   },
   "bugs": {
-    "url": "https://github.com/continua-ai/contilore/issues"
+    "url": "https://github.com/continua-ai/happy-paths/issues"
   },
-  "homepage": "https://github.com/continua-ai/contilore#readme",
+  "homepage": "https://github.com/continua-ai/happy-paths#readme",
   "keywords": ["agent", "llm", "retrieval", "trace", "pi", "continua"],
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

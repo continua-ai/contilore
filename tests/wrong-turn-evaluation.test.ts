@@ -103,7 +103,7 @@ function buildScenario(options: {
 
 describe("wrong-turn evaluation", () => {
   it("runs an end-to-end wrong-turn scenario and finds the correction", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "contilore-wrong-turn-"));
+    const dir = await mkdtemp(join(tmpdir(), "happy-paths-wrong-turn-"));
     tempDirs.push(dir);
 
     const loop = createLocalLearningLoop({ dataDir: dir });
@@ -124,7 +124,7 @@ describe("wrong-turn evaluation", () => {
   });
 
   it("evaluates multiple scenarios and enforces quality gates", async () => {
-    const root = await mkdtemp(join(tmpdir(), "contilore-report-"));
+    const root = await mkdtemp(join(tmpdir(), "happy-paths-report-"));
     tempDirs.push(root);
 
     const hitScenario = buildScenario({
