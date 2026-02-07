@@ -1,6 +1,6 @@
 # Architecture
 
-Continua Loop is intentionally split into pluggable layers.
+Contilore is intentionally split into pluggable layers.
 
 ## Design goals
 
@@ -60,6 +60,17 @@ Future miners should use stronger signals:
 - reverted edits/backtracking
 - eventual success checks (tests/lint/typecheck)
 - cross-session clustering
+
+### 5) Evaluation and quality gating
+
+`wrongTurnEvaluation` provides end-to-end measurement for:
+
+- capture + ingest
+- retrieval + suggestion generation
+- quality metrics (hit@k, MRR)
+- efficiency rollups (wall time, cost, token proxy)
+
+Quality gates can block regressions before rollout.
 
 ## Why lexical-first
 

@@ -1,5 +1,5 @@
 {
-  "name": "@continua-ai/continua-loop",
+  "name": "@continua-ai/contilore",
   "version": "0.1.0",
   "description": "Trace-driven learning loop for coding agents: capture, index, mine wrong turns, and share happy paths.",
   "license": "Apache-2.0",
@@ -18,18 +18,19 @@
     "lint": "biome check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:wrong-turn-gate": "vitest run tests/wrong-turn-dataset.test.ts",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck && npm run test",
     "verify:ci": "npm run verify && npm run guardrails"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/continua-ai/continua-loop.git"
+    "url": "git+https://github.com/continua-ai/contilore.git"
   },
   "bugs": {
-    "url": "https://github.com/continua-ai/continua-loop/issues"
+    "url": "https://github.com/continua-ai/contilore/issues"
   },
-  "homepage": "https://github.com/continua-ai/continua-loop#readme",
+  "homepage": "https://github.com/continua-ai/contilore#readme",
   "keywords": ["agent", "llm", "retrieval", "trace", "pi", "continua"],
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

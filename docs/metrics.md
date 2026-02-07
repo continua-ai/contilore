@@ -16,6 +16,16 @@ Track at task-level:
 
 If correctness drops, reject optimization gains.
 
+## Suggestion quality metrics
+
+For wrong-turn retrieval quality, track:
+
+- hit@1 (expected correction appears in first suggestion)
+- hit@3
+- mean reciprocal rank (MRR)
+
+Use quality gates so efficiency changes cannot silently degrade correctness.
+
 ## Efficiency metrics
 
 - p50/p95 wall time to green

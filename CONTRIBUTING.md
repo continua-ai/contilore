@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for contributing to Continua Loop.
+Thanks for contributing to Contilore.
 
 ## Local setup
 

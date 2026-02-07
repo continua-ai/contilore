@@ -1,4 +1,4 @@
-# Continua Loop
+# Contilore
 
 Trace-driven learning loop for coding agents.
 
@@ -10,7 +10,7 @@ high-confidence hints back into future runs.
 Agentic coding burns time and tokens on repeated dead ends. This is amplified
 across many concurrent agents and teammates.
 
-Continua Loop turns traces into reusable learning artifacts:
+Contilore turns traces into reusable learning artifacts:
 
 - **anti-patterns** (what to avoid)
 - **happy paths** (what tends to work)
@@ -35,6 +35,7 @@ Early scaffold / MVP foundations:
 - basic wrong-turn miner
 - pi adapter hook layer
 - metrics helpers (correctness + wall time + cost + token proxy)
+- end-to-end wrong-turn evaluation flow with hit@k + MRR quality metrics
 
 ## Install
 
@@ -51,9 +52,9 @@ alternative task runner (`bun run ...`) when available.
 ## Quick usage
 
 ```ts
-import { createLocalLearningLoop } from "@continua-ai/continua-loop";
+import { createLocalLearningLoop } from "@continua-ai/contilore";
 
-const loop = createLocalLearningLoop({ dataDir: ".continua-loop" });
+const loop = createLocalLearningLoop({ dataDir: ".contilore" });
 
 await loop.ingest({
   id: crypto.randomUUID(),
@@ -82,16 +83,62 @@ The pi adapter is intentionally thin and uses a pi-like event API contract.
 import {
   createLocalLearningLoop,
   createPiTraceExtension,
-} from "@continua-ai/continua-loop";
+} from "@continua-ai/contilore";
 
 const loop = createLocalLearningLoop();
 export default createPiTraceExtension({ loop });
 ```
 
+## Project naming is parameterized
+
+Brand-specific identifiers are centralized in `src/core/projectIdentity.ts` and
+can be overridden per integration:
+
+```ts
+import { createLocalLearningLoop } from "@continua-ai/contilore";
+
+const loop = createLocalLearningLoop({
+  projectIdentity: {
+    displayName: "YourNewName",
+    defaultDataDirName: ".yournewname",
+    extensionCustomType: "yournewname",
+  },
+});
+```
+
+## End-to-end wrong-turn evaluation
+
+Use the built-in evaluator to measure suggestion quality and efficiency from
+captured traces:
+
+```ts
+import {
+  buildWrongTurnScenarioFromTemplate,
+  createLocalLearningLoop,
+  evaluateWrongTurnScenarios,
+} from "@continua-ai/contilore";
+
+const scenario = buildWrongTurnScenarioFromTemplate(/* ... */);
+const report = await evaluateWrongTurnScenarios([scenario], () => {
+  return createLocalLearningLoop();
+});
+```
+
+See `examples/wrong-turn-evaluation.ts`.
+
+A dataset-driven gate is also included (`testdata/wrong_turn_dataset.json`):
+
+```bash
+npm run test:wrong-turn-gate
+```
+
+This provides a CI-friendly quality floor for hit@k and MRR.
+
 ## Architecture docs
 
 - `docs/architecture.md`
 - `docs/metrics.md`
+- `docs/wrong-turn-flow.md`
 - `docs/engineering-practices.md`
 
 ## CI and guardrails

@@ -1,7 +1,7 @@
 import { createLocalLearningLoop, createPiTraceExtension } from "../src/index.js";
 
 const loop = createLocalLearningLoop({
-  dataDir: ".continua-loop",
+  dataDir: ".contilore",
 });
 
 export default createPiTraceExtension({
