@@ -166,6 +166,26 @@ Primary gate metric is **harmful retry reduction** (command/env/context
 mismatches), with additional constraints on wall time, token counts, recovery
 success, and minimum judgeable coverage.
 
+The runner now reports two lanes:
+
+- `full_eval`: all eval episodes,
+- `family_disjoint_eval`: eval episodes whose family signatures do **not**
+  appear in train.
+
+Default primary lane is `family_disjoint_eval` (recommended for external claims).
+Override with `--primary-lane full_eval` when needed.
+
+Optional overlap cap:
+
+```bash
+npm run eval:trajectory-outcome:long-horizon -- \
+  --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- \
+  --format pi \
+  --tool-name bash \
+  --primary-lane family_disjoint_eval \
+  --max-overlap-rate-by-eval-families 0.10
+```
+
 By default it writes:
 
 - `.happy-paths/trajectory-outcome-long-horizon/report.json`

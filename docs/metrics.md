@@ -29,6 +29,14 @@ Primary measured gate metric for long-horizon holdouts is relative reduction in
 **harmful retries** (not raw failure count), plus wall-time/token deltas and
 judgeable-coverage thresholds.
 
+For trajectory holdouts, evaluate and report both lanes:
+
+- `full_eval` (all eval episodes),
+- `family_disjoint_eval` (families unseen in train).
+
+Use `family_disjoint_eval` as the default primary claim lane, with optional
+overlap-rate caps for stricter evidence hygiene.
+
 Calibration loop for this evaluator:
 
 1. generate labeled sample (`npm run eval:trajectory-calibration-sample`),
