@@ -29,6 +29,17 @@ Primary measured gate metric for long-horizon holdouts is relative reduction in
 **harmful retries** (not raw failure count), plus wall-time/token deltas and
 judgeable-coverage thresholds.
 
+Calibration loop for this evaluator:
+
+1. generate labeled sample (`npm run eval:trajectory-calibration-sample`),
+2. prepare dual-review packets
+   (`npm run eval:trajectory-calibration:prepare-dual-review`),
+3. label with rubric (`docs/trajectory-calibration-rubric.md`),
+4. adjudicate reviewer outputs
+   (`npm run eval:trajectory-calibration:adjudicate`),
+5. score confusion/harmful/abstain metrics
+   (`npm run eval:trajectory-calibration-summary`).
+
 ## Suggestion quality metrics
 
 For wrong-turn retrieval quality, track:

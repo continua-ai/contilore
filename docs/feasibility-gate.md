@@ -170,6 +170,65 @@ By default it writes:
 
 - `.happy-paths/trajectory-outcome-long-horizon/report.json`
 
+## Trajectory calibration sample (labeling bootstrap)
+
+To build a review-ready labeled-sample starter file from eval-split
+trajectory episodes:
+
+```bash
+npm run eval:trajectory-calibration-sample -- \
+  --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- \
+  --format pi \
+  --tool-name bash \
+  --sample-size 300
+```
+
+This generates a stratified sample by predicted issue kind with command/output
+snippets and blank manual-label fields.
+
+Default output:
+
+- `.happy-paths/trajectory-calibration/sample.json`
+
+Use `--seed` for deterministic reshuffles and `--max-output-chars` to constrain
+snippet size.
+
+Labeling guidance:
+
+- `docs/trajectory-calibration-rubric.md`
+
+For dual-review setup (two reviewer packets + overlap manifest):
+
+```bash
+npm run eval:trajectory-calibration:prepare-dual-review -- \
+  --sample .happy-paths/trajectory-calibration/sample.json \
+  --out-dir .happy-paths/trajectory-calibration/review-pass-1 \
+  --reviewer-a reviewer_a \
+  --reviewer-b reviewer_b \
+  --overlap-ratio 0.2
+```
+
+After both reviewers finish, adjudicate into one merged label set:
+
+```bash
+npm run eval:trajectory-calibration:adjudicate -- \
+  --sample .happy-paths/trajectory-calibration/sample.json \
+  --reviewer-a-file .happy-paths/trajectory-calibration/review-pass-1/reviewer_a.json \
+  --reviewer-b-file .happy-paths/trajectory-calibration/review-pass-1/reviewer_b.json \
+  --conflict-policy unresolved
+```
+
+Then generate confusion-matrix + harmful/abstain quality metrics:
+
+```bash
+npm run eval:trajectory-calibration-summary -- \
+  --sample .happy-paths/trajectory-calibration/review-pass-1/adjudicated.json
+```
+
+Default summary output:
+
+- `.happy-paths/trajectory-calibration/summary.json`
+
 ## Scenario pack inputs
 
 Base fixture:
