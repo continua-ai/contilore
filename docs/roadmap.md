@@ -22,6 +22,7 @@
 - stronger lexical ranking (BM25 / FTS backend)
 - near-duplicate clustering for repeated mistakes
 - confidence calibration and quality gates
+- long-horizon measured holdout benchmark (chronological split + leakage check)
 
 ## Phase 2
 

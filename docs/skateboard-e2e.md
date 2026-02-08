@@ -39,6 +39,16 @@ Observed A/B pairing uses adjacent cross-session transitions and drops extreme
 mismatches by ratio. Optional tuning knobs:
 `--max-wall-time-ratio`, `--max-token-count-ratio`, `--allow-same-session`.
 
+Long-horizon measured holdout (newer eval sessions only, with leakage check):
+
+```bash
+npm run eval:observed-ab:long-horizon -- \
+  --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- \
+  --format pi \
+  --tool-name bash \
+  --strict-no-family-overlap
+```
+
 Custom dataset mix:
 
 ```bash
