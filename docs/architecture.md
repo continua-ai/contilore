@@ -1,6 +1,7 @@
 # Architecture
 
-Happy Paths is intentionally split into pluggable layers.
+Happy Paths is intentionally split into pluggable layers for agentic coding.
+The default path stays simple, local, and correctness-first.
 
 ## Design goals
 
