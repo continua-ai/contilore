@@ -464,6 +464,32 @@ async function main(): Promise<void> {
   const manifestPath = path.join(evidenceRoot, "run-manifest.json");
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf-8");
 
+  const trajectoryEvidencePath = path.join(
+    webRepoRoot,
+    "evidence/trajectory_outcome/report.json",
+  );
+  await mkdir(path.dirname(trajectoryEvidencePath), { recursive: true });
+  runCommand(repoRoot, "npx", [
+    "tsx",
+    "scripts/run-trajectory-outcome-long-horizon.ts",
+    "--trace-root",
+    ".happy-paths",
+    "--format",
+    "trace",
+    "--tool-name",
+    "bash",
+    "--min-session-duration-ms",
+    "1000",
+    "--min-total-latency-ms",
+    "0",
+    "--min-tool-result-count",
+    "2",
+    "--eval-ratio",
+    "0.3",
+    "--out",
+    trajectoryEvidencePath,
+  ]);
+
   runCommand(webRepoRoot, "npm", ["run", "generate:evidence"]);
 
   const publicDataPath = path.join(
@@ -480,6 +506,7 @@ async function main(): Promise<void> {
         generatedAtUtc,
         runs: runPlans.length,
         manifestPath,
+        trajectoryEvidencePath,
         publicDataPath,
         latestRunId: publicData.runs?.[publicData.runs.length - 1]?.id ?? null,
         latestScenarioCount:

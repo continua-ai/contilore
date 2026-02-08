@@ -37,7 +37,7 @@ type ParsedOptions = {
   };
   pairing: {
     minOccurrencesPerFamily?: number;
-    requireCrossSession?: boolean;
+    requireCrossSession: boolean;
     maxWallTimeRatio?: number;
     maxTokenCountRatio?: number;
   };
@@ -116,7 +116,9 @@ function parseArgs(argv: string[]): ParsedOptions {
     json: false,
     out: ".happy-paths/trajectory-outcome-long-horizon/report.json",
     thresholds: {},
-    pairing: {},
+    pairing: {
+      requireCrossSession: true,
+    },
     trust: {},
   };
 
@@ -508,13 +510,13 @@ async function main(): Promise<void> {
       totalLongHorizonSessions: longHorizonSessions.length,
       trainSessionCount: holdout.trainSessions.length,
       evalSessionCount: holdout.evalSessions.length,
-      trainSessionIds: [...trainSessionIds],
-      evalSessionIds: [...evalSessionIds],
-      familyOverlap,
-    },
-    sessions: {
-      train: holdout.trainSessions,
-      eval: holdout.evalSessions,
+      familyOverlap: {
+        trainFamilyCount: familyOverlap.trainFamilyCount,
+        evalFamilyCount: familyOverlap.evalFamilyCount,
+        overlappingFamilyCount: familyOverlap.overlappingFamilyCount,
+        overlapRateByEvalFamilies: familyOverlap.overlapRateByEvalFamilies,
+        overlapRateByTrainFamilies: familyOverlap.overlapRateByTrainFamilies,
+      },
     },
     trainEpisodeCount: trainEpisodes.length,
     evalEpisodeCount: evalEpisodes.length,
