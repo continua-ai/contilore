@@ -1,4 +1,4 @@
-import type { TraceEvent, TraceScope } from "./types.js";
+import type { TokenUsage, TraceEvent, TraceScope } from "./types.js";
 import type { WrongTurnDataset } from "./wrongTurnDataset.js";
 import type {
   SuggestionQualityGate,
@@ -70,6 +70,10 @@ type JsonRecord = Record<string, unknown>;
 interface PendingPiToolCall {
   command: string;
   timestamp: string;
+  timestampMs: number | null;
+  modelLatencyMs: number;
+  modelTokens: TokenUsage;
+  modelCostUsd: number;
 }
 
 function asRecord(value: unknown): JsonRecord | null {
@@ -81,6 +85,10 @@ function asRecord(value: unknown): JsonRecord | null {
 
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function asArray(value: unknown): unknown[] {
@@ -242,6 +250,92 @@ function inferPiSessionId(records: JsonRecord[]): string {
   return "pi-session";
 }
 
+function parseTimestampMs(timestamp: string | null): number | null {
+  if (!timestamp) {
+    return null;
+  }
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function nonNegativeDeltaMs(startMs: number | null, endMs: number | null): number {
+  if (startMs === null || endMs === null) {
+    return 0;
+  }
+  return Math.max(0, endMs - startMs);
+}
+
+function parseAssistantUsageTokens(message: JsonRecord): TokenUsage {
+  const usage = asRecord(message.usage);
+  if (!usage) {
+    return {};
+  }
+
+  const input = asNumber(usage.input) ?? asNumber(usage.inputTokens) ?? 0;
+  const cacheRead = asNumber(usage.cacheRead) ?? asNumber(usage.cachedInputTokens) ?? 0;
+  const output = asNumber(usage.output) ?? asNumber(usage.outputTokens) ?? 0;
+  const cacheWrite = asNumber(usage.cacheWrite) ?? 0;
+  const thinking = asNumber(usage.thinking) ?? asNumber(usage.reasoning) ?? 0;
+
+  return {
+    inputUncached: input,
+    inputCached: cacheRead,
+    output,
+    cacheWrite,
+    thinking,
+  };
+}
+
+function parseAssistantUsageCostUsd(message: JsonRecord): number {
+  const usage = asRecord(message.usage);
+  if (!usage) {
+    return 0;
+  }
+
+  const usageCost = asRecord(usage.cost);
+  const directTotal = usageCost ? asNumber(usageCost.total) : null;
+  if (directTotal !== null) {
+    return directTotal;
+  }
+
+  const inputCost = usageCost ? (asNumber(usageCost.input) ?? 0) : 0;
+  const outputCost = usageCost ? (asNumber(usageCost.output) ?? 0) : 0;
+  const cacheReadCost = usageCost ? (asNumber(usageCost.cacheRead) ?? 0) : 0;
+  const cacheWriteCost = usageCost ? (asNumber(usageCost.cacheWrite) ?? 0) : 0;
+
+  return inputCost + outputCost + cacheReadCost + cacheWriteCost;
+}
+
+function splitTokenUsage(usage: TokenUsage, parts: number): TokenUsage {
+  if (parts <= 1) {
+    return {
+      inputUncached: usage.inputUncached ?? 0,
+      inputCached: usage.inputCached ?? 0,
+      output: usage.output ?? 0,
+      cacheWrite: usage.cacheWrite ?? 0,
+      thinking: usage.thinking ?? 0,
+    };
+  }
+
+  return {
+    inputUncached: (usage.inputUncached ?? 0) / parts,
+    inputCached: (usage.inputCached ?? 0) / parts,
+    output: (usage.output ?? 0) / parts,
+    cacheWrite: (usage.cacheWrite ?? 0) / parts,
+    thinking: (usage.thinking ?? 0) / parts,
+  };
+}
+
+function hasTokenUsage(usage: TokenUsage): boolean {
+  return (
+    (usage.inputUncached ?? 0) > 0 ||
+    (usage.inputCached ?? 0) > 0 ||
+    (usage.output ?? 0) > 0 ||
+    (usage.cacheWrite ?? 0) > 0 ||
+    (usage.thinking ?? 0) > 0
+  );
+}
+
 function parseToolCallCommand(toolCall: JsonRecord): string {
   const argumentsObject = asRecord(toolCall.arguments);
   const command = argumentsObject ? asString(argumentsObject.command) : null;
@@ -314,6 +408,7 @@ export function buildTraceEventsFromPiSessionRecords(
   const traceEvents: TraceEvent[] = [];
   const maxToolOutputChars =
     options.maxToolOutputChars ?? DEFAULT_MAX_TOOL_OUTPUT_CHARS;
+  let previousMessageTimestampMs: number | null = null;
 
   for (const [index, record] of records.entries()) {
     const recordType = asString(record.type);
@@ -327,9 +422,11 @@ export function buildTraceEventsFromPiSessionRecords(
     }
 
     const timestamp = asString(record.timestamp) ?? fallbackTimestamp(index);
+    const timestampMs = parseTimestampMs(timestamp);
     const role = asString(message.role);
 
     if (role === "assistant") {
+      const matchingToolCalls: Array<{ id: string; command: string }> = [];
       for (const contentEntry of asArray(message.content)) {
         const toolCall = asRecord(contentEntry);
         if (!toolCall) {
@@ -354,24 +451,58 @@ export function buildTraceEventsFromPiSessionRecords(
           continue;
         }
 
-        pendingToolCalls.set(toolCallId, {
+        matchingToolCalls.push({
+          id: toolCallId,
           command,
-          timestamp,
         });
+      }
+
+      if (matchingToolCalls.length > 0) {
+        const assistantLatencyMs = nonNegativeDeltaMs(
+          previousMessageTimestampMs,
+          timestampMs,
+        );
+        const usageTokens = parseAssistantUsageTokens(message);
+        const usageCostUsd = parseAssistantUsageCostUsd(message);
+        const callCount = matchingToolCalls.length;
+
+        for (const toolCall of matchingToolCalls) {
+          pendingToolCalls.set(toolCall.id, {
+            command: toolCall.command,
+            timestamp,
+            timestampMs,
+            modelLatencyMs: assistantLatencyMs / callCount,
+            modelTokens: splitTokenUsage(usageTokens, callCount),
+            modelCostUsd: usageCostUsd / callCount,
+          });
+        }
+      }
+
+      if (timestampMs !== null) {
+        previousMessageTimestampMs = timestampMs;
       }
       continue;
     }
 
     if (role !== "toolResult") {
+      if (timestampMs !== null) {
+        previousMessageTimestampMs = timestampMs;
+      }
       continue;
     }
 
     if (asString(message.toolName) !== options.toolName) {
+      if (timestampMs !== null) {
+        previousMessageTimestampMs = timestampMs;
+      }
       continue;
     }
 
     const toolCallId = asString(message.toolCallId);
     if (!toolCallId) {
+      if (timestampMs !== null) {
+        previousMessageTimestampMs = timestampMs;
+      }
       continue;
     }
 
@@ -379,11 +510,19 @@ export function buildTraceEventsFromPiSessionRecords(
     const command = pending?.command ?? "";
     const output = truncateText(parseToolResultOutput(message), maxToolOutputChars);
     if (!command && !output) {
+      if (timestampMs !== null) {
+        previousMessageTimestampMs = timestampMs;
+      }
       continue;
     }
 
     const explicitIsError = message.isError === true;
     const isError = inferPiToolResultIsError(explicitIsError, output);
+    const toolLatencyMs = nonNegativeDeltaMs(pending?.timestampMs ?? null, timestampMs);
+    const totalLatencyMs = toolLatencyMs + (pending?.modelLatencyMs ?? 0);
+
+    const tokens = pending?.modelTokens ?? {};
+    const costUsd = pending?.modelCostUsd ?? 0;
 
     traceEvents.push({
       id: `${options.sessionId}-pi-tool-result-${traceEvents.length + 1}`,
@@ -398,11 +537,18 @@ export function buildTraceEventsFromPiSessionRecords(
         isError,
       },
       metrics: {
+        latencyMs: totalLatencyMs,
+        tokens: hasTokenUsage(tokens) ? tokens : undefined,
+        cost: costUsd > 0 ? { usd: costUsd } : undefined,
         outcome: isError ? "failure" : "success",
       },
     });
 
     pendingToolCalls.delete(toolCallId);
+
+    if (timestampMs !== null) {
+      previousMessageTimestampMs = timestampMs;
+    }
   }
 
   return traceEvents;
