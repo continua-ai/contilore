@@ -213,7 +213,9 @@ async function main() {
     console.log(`  - hit@3: ${report.retrievalOn.hitAt3Rate.toFixed(3)}`);
     console.log(`  - mrr: ${report.retrievalOn.meanReciprocalRank.toFixed(3)}`);
 
-    console.log("- feasibility deltas:");
+    console.log(
+      "- feasibility deltas (ON modeled via assist factors; OFF measured from trace timestamps/tokens):",
+    );
     console.log(
       [
         "  - repeated dead-end rate:",
@@ -224,10 +226,17 @@ async function main() {
     );
     console.log(
       [
-        "  - wall time ms:",
-        `${report.aggregate.totalWallTimeOffMs.toFixed(1)} ->`,
-        report.aggregate.totalWallTimeOnMs.toFixed(1),
+        "  - wall time s:",
+        `${(report.aggregate.totalWallTimeOffMs / 1000).toFixed(2)} ->`,
+        (report.aggregate.totalWallTimeOnMs / 1000).toFixed(2),
         `(relative reduction ${report.aggregate.relativeWallTimeReduction.toFixed(3)})`,
+      ].join(" "),
+    );
+    console.log(
+      [
+        "  - token count:",
+        `${report.aggregate.totalTokenCountOff.toFixed(0)} ->`,
+        report.aggregate.totalTokenCountOn.toFixed(0),
       ].join(" "),
     );
     console.log(

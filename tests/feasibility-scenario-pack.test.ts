@@ -123,6 +123,15 @@ describe("feasibility scenario pack", () => {
         timestamp: "2026-03-01T00:00:01.000Z",
         message: {
           role: "assistant",
+          usage: {
+            input: 1200,
+            output: 100,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: {
+              total: 0.01,
+            },
+          },
           content: [
             {
               type: "toolCall",
@@ -156,6 +165,15 @@ describe("feasibility scenario pack", () => {
         timestamp: "2026-03-01T00:00:03.000Z",
         message: {
           role: "assistant",
+          usage: {
+            input: 800,
+            output: 80,
+            cacheRead: 0,
+            cacheWrite: 0,
+            cost: {
+              total: 0.007,
+            },
+          },
           content: [
             {
               type: "toolCall",
@@ -191,6 +209,15 @@ describe("feasibility scenario pack", () => {
     expect(templates[0]?.id).toContain("pi-session-1-recovery");
     expect(templates[0]?.query.text.toLowerCase()).toContain("command not found");
     expect(templates[0]?.expectedPhrases).toContain("pants");
+
+    const captureEvents = templates[0]?.captureEvents ?? [];
+    expect(captureEvents.length).toBe(2);
+    expect(captureEvents[0]?.metrics?.latencyMs).toBe(1000);
+    expect(captureEvents[1]?.metrics?.latencyMs).toBe(2000);
+    expect(captureEvents[0]?.metrics?.tokens?.inputUncached).toBe(1200);
+    expect(captureEvents[1]?.metrics?.tokens?.inputUncached).toBe(800);
+    expect(captureEvents[0]?.metrics?.cost?.usd).toBe(0.01);
+    expect(captureEvents[1]?.metrics?.cost?.usd).toBe(0.007);
   });
 
   it("builds dataset from templates", () => {

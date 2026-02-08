@@ -27,6 +27,10 @@ The gate also reports directional efficiency proxies:
 Proxy model:
 
 - baseline run outcome is derived from scenario capture events,
+- for Pi-session-derived scenarios, per-step latency is computed from actual
+  session timestamps (assistant step + tool execution),
+- for Pi-session-derived scenarios, token/cost data is sourced from assistant
+  `usage` fields in the session records,
 - failure-overhead events are identified from `metrics.outcome == "failure"`,
 - ON-mode retrieval rank applies a conservative assist factor:
   - rank 1 -> `1.0`

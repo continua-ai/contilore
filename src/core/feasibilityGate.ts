@@ -35,6 +35,8 @@ export interface FeasibilityScenarioEstimate {
   retriesOn: number;
   wallTimeOffMs: number;
   wallTimeOnMs: number;
+  tokenCountOff: number;
+  tokenCountOn: number;
   tokenProxyOff: number;
   tokenProxyOn: number;
   costOffUsd: number;
@@ -76,6 +78,8 @@ export interface FeasibilityAggregate {
   recoverySuccessRateOn: number;
   totalWallTimeOffMs: number;
   totalWallTimeOnMs: number;
+  totalTokenCountOff: number;
+  totalTokenCountOn: number;
   totalTokenProxyOff: number;
   totalTokenProxyOn: number;
   totalCostOffUsd: number;
@@ -151,6 +155,16 @@ function relativeReduction(off: number, on: number): number {
     return on <= 0 ? 0 : -1;
   }
   return (off - on) / off;
+}
+
+function totalTokenCount(tokens: TokenUsage): number {
+  return (
+    (tokens.inputUncached ?? 0) +
+    (tokens.inputCached ?? 0) +
+    (tokens.output ?? 0) +
+    (tokens.thinking ?? 0) +
+    (tokens.cacheWrite ?? 0)
+  );
 }
 
 function cloneTokenUsage(tokens: TokenUsage): TokenUsage {
@@ -463,6 +477,14 @@ function buildAggregateFromEstimates(
     (sum, entry) => sum + entry.wallTimeOnMs,
     0,
   );
+  const totalTokenCountOff = estimates.reduce(
+    (sum, entry) => sum + entry.tokenCountOff,
+    0,
+  );
+  const totalTokenCountOn = estimates.reduce(
+    (sum, entry) => sum + entry.tokenCountOn,
+    0,
+  );
   const totalTokenProxyOff = estimates.reduce(
     (sum, entry) => sum + entry.tokenProxyOff,
     0,
@@ -482,6 +504,8 @@ function buildAggregateFromEstimates(
     recoverySuccessRateOn,
     totalWallTimeOffMs,
     totalWallTimeOnMs,
+    totalTokenCountOff,
+    totalTokenCountOn,
     totalTokenProxyOff,
     totalTokenProxyOn,
     totalCostOffUsd,
@@ -649,6 +673,8 @@ export async function evaluateFeasibilityGate(
       retriesOn: estimatedOutcome.retries,
       wallTimeOffMs: baselineOutcome.wallTimeMs,
       wallTimeOnMs: estimatedOutcome.wallTimeMs,
+      tokenCountOff: totalTokenCount(baselineOutcome.tokens),
+      tokenCountOn: totalTokenCount(estimatedOutcome.tokens),
       tokenProxyOff: tokenProxy(baselineOutcome.tokens),
       tokenProxyOn: tokenProxy(estimatedOutcome.tokens),
       costOffUsd: baselineOutcome.costUsd,
