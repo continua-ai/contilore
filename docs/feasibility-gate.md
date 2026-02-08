@@ -229,6 +229,19 @@ Default summary output:
 
 - `.happy-paths/trajectory-calibration/summary.json`
 
+Optional threshold tuning pass on adjudicated labels:
+
+```bash
+npm run eval:trajectory-calibration:tune-thresholds -- \
+  --sample .happy-paths/trajectory-calibration/review-pass-1/adjudicated.json \
+  --min-precision 0.85 \
+  --min-judgeable-coverage 0.60
+```
+
+Default tuning output:
+
+- `.happy-paths/trajectory-calibration/review-pass-1/threshold-tuning.json`
+
 ## Scenario pack inputs
 
 Base fixture:

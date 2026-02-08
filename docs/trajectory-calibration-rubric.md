@@ -152,3 +152,19 @@ The summary includes:
 - harmful binary metrics,
 - abstain and judgeable-coverage stats,
 - top disagreement examples for error analysis.
+
+## Threshold tuning pass
+
+After adjudicated labels are available, run a threshold sweep over predicted
+confidence to pick an initial operating point:
+
+```bash
+npm run eval:trajectory-calibration:tune-thresholds -- \
+  --sample .happy-paths/trajectory-calibration/review-pass-1/adjudicated.json \
+  --min-precision 0.85 \
+  --min-judgeable-coverage 0.60
+```
+
+Default output:
+
+- `.happy-paths/trajectory-calibration/review-pass-1/threshold-tuning.json`

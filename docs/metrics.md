@@ -38,7 +38,9 @@ Calibration loop for this evaluator:
 4. adjudicate reviewer outputs
    (`npm run eval:trajectory-calibration:adjudicate`),
 5. score confusion/harmful/abstain metrics
-   (`npm run eval:trajectory-calibration-summary`).
+   (`npm run eval:trajectory-calibration-summary`),
+6. run threshold sweep for initial operating point selection
+   (`npm run eval:trajectory-calibration:tune-thresholds`).
 
 ## Suggestion quality metrics
 

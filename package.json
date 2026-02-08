@@ -30,6 +30,7 @@
     "eval:trajectory-calibration:prepare-dual-review": "tsc -p tsconfig.build.json && tsx scripts/prepare-trajectory-calibration-dual-review.ts",
     "eval:trajectory-calibration:adjudicate": "tsc -p tsconfig.build.json && tsx scripts/adjudicate-trajectory-calibration.ts",
     "eval:trajectory-calibration-summary": "tsc -p tsconfig.build.json && tsx scripts/summarize-trajectory-calibration.ts",
+    "eval:trajectory-calibration:tune-thresholds": "tsc -p tsconfig.build.json && tsx scripts/tune-trajectory-calibration-thresholds.ts",
     "build:feasibility-dataset": "tsc -p tsconfig.build.json && tsx scripts/build-feasibility-dataset-from-traces.ts",
     "memo:feasibility": "tsc -p tsconfig.build.json && tsx scripts/write-feasibility-memo.ts",
     "sync:evidence-web": "tsx scripts/publish-feasibility-evidence.ts",
