@@ -33,21 +33,21 @@
 
 ---
 
-I built Happy Paths as a trace-driven learning loop for agentic coding.
+Happy Paths is a trace-driven learning loop for agentic coding.
 
-I capture agent traces, index them quickly, mine wrong-turn corrections, and
-turn those recoveries into reusable recovery skills that feed back into future
-runs.
+Happy Paths captures agent traces, indexes them quickly, mines wrong-turn
+corrections, and turns those recoveries into reusable recovery skills that feed
+back into future runs.
 
 ## Why this exists
 
-I use Pi (and other extensible coding harnesses) because they let me improve
-my process with skills, extensions, and tooling.
+Pi (and other extensible coding harnesses) let teams improve the workflow with
+skills, extensions, and tooling.
 
 That is powerful — but **figuring out when and how to extend the harness is
 itself expensive and noisy**.
 
-I built Happy Paths to automate that learning loop:
+Happy Paths automates that learning loop:
 
 - detect repeated wrong turns,
 - find corrections that worked,
@@ -98,20 +98,20 @@ skills.sh, but with automatic trace-driven extraction and curation).
 ## How Happy Paths works
 
 1. **Capture**
-   - I normalize agent/tool events into `TraceEvent`.
+   - Normalize agent/tool events into `TraceEvent`.
 2. **Index**
-   - I build lexical documents/signatures immediately.
-   - I can optionally combine lexical + semantic indexes via fusion.
+   - Build lexical documents/signatures immediately.
+   - Optionally combine lexical + semantic indexes via fusion.
 3. **Mine**
-   - I detect wrong-turn -> correction arcs.
+   - Detect wrong-turn -> correction arcs.
 4. **Augment**
-   - I surface suggestions before/while agents run.
-   - I promote high-confidence patterns into reusable recovery skills and
+   - Surface suggestions before/while agents run.
+   - Promote high-confidence patterns into reusable recovery skills and
      playbooks for agentic coding.
 
 ## What exists now (on `main`)
 
-Today I ship:
+Today Happy Paths ships:
 
 - normalized trace schema + core interfaces
 - local JSONL trace store
