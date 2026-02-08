@@ -93,6 +93,22 @@ Convenience command for the skateboard E2E trust pass:
 npm run eval:skateboard
 ```
 
+## Observed A/B gate (measured OFF vs ON episodes)
+
+When you want measured OFF/ON comparisons from repeated failure families across
+sessions (instead of ON-side assist-factor modeling), run:
+
+```bash
+npm run eval:observed-ab -- \
+  --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- \
+  --format pi \
+  --tool-name bash
+```
+
+This command builds OFF/ON episode pairs from repeated signatures and reports
+measured wall time (seconds), token counts, token proxy, retries, and bootstrap
+intervals.
+
 ## Scenario pack inputs
 
 Base fixture:

@@ -26,6 +26,15 @@ Trust-focused run (recommended):
 npm run eval:skateboard
 ```
 
+Measured OFF/ON episodes from repeated real traces:
+
+```bash
+npm run eval:observed-ab -- \
+  --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- \
+  --format pi \
+  --tool-name bash
+```
+
 Custom dataset mix:
 
 ```bash

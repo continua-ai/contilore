@@ -12,6 +12,7 @@ export * from "./core/wrongTurnEvaluation.js";
 export * from "./core/wrongTurnDataset.js";
 export * from "./core/feasibilityGate.js";
 export * from "./core/feasibilityScenarioPack.js";
+export * from "./core/observedAbGate.js";
 
 export * from "./backends/local/index.js";
 
