@@ -196,6 +196,7 @@ npm run eval:wrong-turn
 npm run eval:feasibility
 npm run eval:skateboard
 npm run eval:observed-ab -- --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- --format pi --tool-name bash
+npm run eval:observed-ab:long-horizon -- --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- --format pi --tool-name bash --strict-no-family-overlap
 npm run memo:feasibility
 npm run sync:evidence-web
 ```

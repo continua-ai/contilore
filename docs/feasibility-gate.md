@@ -113,6 +113,33 @@ Pairing quality is tightened by default using adjacent transitions within each
 family plus outlier filtering (`max_wall_ratio=4`, `max_token_ratio=4`). You
 can tune with `--max-wall-time-ratio` and `--max-token-count-ratio`.
 
+## Long-horizon observed A/B holdout (decision-oriented)
+
+When moving from short-loop feasibility checks to stricter evidence, run the
+long-horizon holdout benchmark:
+
+```bash
+npm run eval:observed-ab:long-horizon -- \
+  --trace-root ~/.pi/agent/sessions/--Users-dpetrou-src-.worktrees-workspace-CON-1469-- \
+  --format pi \
+  --tool-name bash \
+  --strict-no-family-overlap
+```
+
+This runner:
+
+1. selects long-horizon sessions (`--min-session-duration-ms`,
+   `--min-total-latency-ms`, `--min-tool-result-count`),
+2. splits chronologically into older train sessions and newer eval sessions
+   (`--eval-ratio`),
+3. reports family-signature leakage between train/eval and can fail on leakage
+   with `--strict-no-family-overlap`,
+4. evaluates measured OFF vs ON episode pairs only on the eval split.
+
+By default it writes a reproducible report to:
+
+- `.happy-paths/observed-ab-long-horizon/report.json`
+
 ## Scenario pack inputs
 
 Base fixture:
