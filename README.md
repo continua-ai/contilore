@@ -47,31 +47,19 @@ skills, extensions, and tooling.
 That is powerful — but **figuring out when and how to extend the harness is
 itself expensive and noisy**.
 
-Happy Paths automates that learning loop:
-
-- detect repeated wrong turns,
-- find corrections that worked,
-- propose reusable recovery skills/playbooks,
-- improve future runs automatically.
+Happy Paths automates that learning loop end-to-end: it detects repeated
+wrong turns, links them to corrections that worked, promotes those recoveries
+into reusable skills/playbooks, and feeds the result back into future runs so
+each run gets less wasteful over time.
 
 ## The story arc
 
-### 1) Single engineer, single agent
-
-One agent repeats avoidable dead-ends. You burn time and tokens.
-
-### 2) Single engineer, many agents
-
-Now 5–10 concurrent agents repeat each other's mistakes. Waste compounds.
-
-### 3) Teams
-
-Different engineers rediscover the same fixes. Org-level costs rise.
-
-### 4) The world
-
-Natural extension: opt-in global crowdsourcing of learned happy paths (think
-skills.sh, but with automatic trace-driven extraction and curation).
+The same failure pattern repeats at every scale. It starts with one engineer
+and one agent looping on avoidable dead-ends, then compounds when multiple
+agents run concurrently and replay each other’s mistakes. At team scale,
+engineers rediscover similar fixes independently and the cost becomes org-wide.
+The natural endpoint is opt-in global sharing of learned happy paths (similar
+in spirit to skill exchange, but extracted and curated from real traces).
 
 <table>
   <tbody>
@@ -90,39 +78,28 @@ skills.sh, but with automatic trace-driven extraction and curation).
 
 ## Core principles
 
-- **Correctness first**: never trade reliability for speed/cost.
-- **Lexical-first retrieval**: signatures + exact/near-exact matching before heavy semantics.
-- **Local-first default**: no required external DB/vector dependencies.
-- **Pluggable everything**: harness adapters + index/store backends are replaceable.
+Happy Paths is correctness-first: we do not trade reliability for speed or
+cost. Retrieval is lexical/signature-first (exact and near-exact matching)
+before heavier semantic techniques. The default local mode has no mandatory
+external database or vector dependency, and adapters/backends remain pluggable
+so teams can swap harness and storage layers without rewriting core logic.
 
 ## How Happy Paths works
 
-1. **Capture**
-   - Normalize agent/tool events into `TraceEvent`.
-2. **Index**
-   - Build lexical documents/signatures immediately.
-   - Optionally combine lexical + semantic indexes via fusion.
-3. **Mine**
-   - Detect wrong-turn -> correction arcs.
-4. **Augment**
-   - Surface suggestions before/while agents run.
-   - Promote high-confidence patterns into reusable recovery skills and
-     playbooks for agentic coding.
+At runtime, the loop normalizes agent and tool events into `TraceEvent`, builds
+lexical retrieval artifacts immediately, mines wrong-turn-to-correction arcs,
+and then re-injects high-confidence recoveries as reusable guidance before or
+during future runs. Lexical and semantic retrieval can be combined via fusion,
+but the default path stays practical and deterministic.
 
 ## What exists now (on `main`)
 
-Today Happy Paths ships:
-
-- normalized trace schema + core interfaces
-- local JSONL trace store
-- in-memory lexical index
-- optional composite index (lexical + semantic fusion)
-- wrong-turn miner
-- pi adapter hooks
-- local bootstrap from persisted traces across sessions
-- end-to-end wrong-turn evaluator (hit@1, hit@3, MRR)
-- dataset-based quality gate in CI
-- source-size guardrails in CI
+The current implementation includes a normalized trace schema and core
+interfaces, a local JSONL trace store, an in-memory lexical index, an optional
+composite index (lexical + semantic fusion), wrong-turn mining, and pi adapter
+hooks. It also supports local bootstrap from persisted traces across sessions,
+ships an end-to-end wrong-turn evaluator (hit@1/hit@3/MRR), enforces a
+fixture-based quality gate in CI, and includes source-size guardrails.
 
 ## Install
 
@@ -225,18 +202,10 @@ target total engineering throughput, not model spend alone.
 
 ## Hosted vision
 
-We intend to support hosted, opt-in sharing:
-
-- personal scope -> team scope -> global scope,
-- with privacy controls and artifact review,
-- so learned agent improvements can be published and reused at internet scale.
-
-## Icon and shorthand
-
-Primary mark: jumping girl.
-
-- primary mark: `assets/brand/jumping-girl-mark.png`
-- unicode shorthand: `🤸‍♀️`
+The hosted direction is opt-in sharing that can grow from personal scope to
+team scope and then to broader/global scope, with privacy controls and artifact
+review at each stage so learned agent improvements can be safely published and
+reused at internet scale.
 
 ## Credits
 
