@@ -321,8 +321,9 @@ and top two risks.
 
 ## One-click sync to website evidence
 
-From the OSS repo, generate run reports + manifest + definitions/experiment
-metadata, then refresh website evidence artifacts:
+From the OSS repo, generate reproducible evidence reports (feasibility runs +
+observed A/B long-horizon + trajectory long-horizon), write manifests and
+definitions/experiment metadata, then refresh website evidence artifacts:
 
 ```bash
 npm run sync:evidence-web
