@@ -133,7 +133,7 @@ export function createHttpIngestServer(options: IngestServerOptions) {
         return;
       }
 
-      const teamId = options.auth.resolveTeamId(token);
+      const teamId = await options.auth.resolveTeamId(token);
       if (!teamId) {
         json(response, 401, { error: "unauthorized" });
         return;

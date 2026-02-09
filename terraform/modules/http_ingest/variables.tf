@@ -54,6 +54,12 @@ variable "team_tokens_json_secret_name" {
   default     = ""
 }
 
+variable "team_auth_url" {
+  description = "Optional URL for hosted token->team resolution. If set, the service will call this endpoint to resolve bearer tokens to a teamId."
+  type        = string
+  default     = ""
+}
+
 variable "gcs_prefix" {
   description = "Optional key prefix within the trace bucket."
   type        = string

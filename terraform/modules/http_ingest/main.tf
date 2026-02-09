@@ -118,6 +118,14 @@ resource "google_cloud_run_v2_service" "ingest" {
         value = var.team_id
       }
 
+      dynamic "env" {
+        for_each = var.team_auth_url != "" ? [1] : []
+        content {
+          name  = "HAPPY_PATHS_TEAM_AUTH_URL"
+          value = var.team_auth_url
+        }
+      }
+
       env {
         name  = "HAPPY_PATHS_INGEST_GCS_BUCKET"
         value = google_storage_bucket.trace_bundles.name
