@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import { defaultShipperStatePath, shipTraceBundles } from "../src/ingest/shipper.js";
 
 interface Options {
@@ -11,10 +14,34 @@ interface Options {
   maxUploads?: number;
 }
 
+function expandHome(rawPath: string): string {
+  if (rawPath.startsWith("~/")) {
+    return join(homedir(), rawPath.slice(2));
+  }
+
+  return rawPath;
+}
+
+function absolutizePath(rawPath: string): string {
+  const expanded = expandHome(rawPath);
+  return isAbsolute(expanded) ? expanded : resolve(process.cwd(), expanded);
+}
+
+function readTokenFile(rawPath: string): string {
+  const absolutePath = absolutizePath(rawPath);
+  const token = readFileSync(absolutePath, "utf-8").trim();
+  if (!token) {
+    throw new Error(`Empty token file: ${absolutePath}`);
+  }
+  return token;
+}
+
 function parseArgs(argv: string[]): Options {
   const envRoots = process.env.HAPPY_PATHS_TRACE_ROOTS
     ? process.env.HAPPY_PATHS_TRACE_ROOTS.split(",").map((value) => value.trim())
     : undefined;
+
+  let teamTokenFile = process.env.HAPPY_PATHS_TEAM_TOKEN_FILE;
 
   const options: Options = {
     ingestUrl: process.env.HAPPY_PATHS_INGEST_URL ?? "http://localhost:8787",
@@ -46,6 +73,12 @@ function parseArgs(argv: string[]): Options {
 
     if (arg === "--team-token") {
       options.teamToken = argv[i + 1] ?? options.teamToken;
+      i += 1;
+      continue;
+    }
+
+    if (arg === "--team-token-file") {
+      teamTokenFile = argv[i + 1] ?? teamTokenFile;
       i += 1;
       continue;
     }
@@ -91,13 +124,20 @@ function parseArgs(argv: string[]): Options {
     throw new Error(`Unknown arg: ${arg}`);
   }
 
-  if (!options.teamToken.trim()) {
-    throw new Error(
-      "Missing team token. Set HAPPY_PATHS_TEAM_TOKEN or pass --team-token.",
-    );
+  const trimmedToken = options.teamToken.trim();
+  if (trimmedToken) {
+    options.teamToken = trimmedToken;
+    return options;
   }
 
-  return options;
+  if (teamTokenFile?.trim()) {
+    options.teamToken = readTokenFile(teamTokenFile);
+    return options;
+  }
+
+  throw new Error(
+    "Missing team token. Set HAPPY_PATHS_TEAM_TOKEN / HAPPY_PATHS_TEAM_TOKEN_FILE or pass --team-token / --team-token-file.",
+  );
 }
 
 async function main(): Promise<void> {

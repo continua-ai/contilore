@@ -144,7 +144,7 @@ Environment variables:
 
 - `HAPPY_PATHS_INGEST_URL` (e.g. `http://localhost:8787`)
 - `HAPPY_PATHS_TEAM_ID` (optional; used for state scoping)
-- `HAPPY_PATHS_TEAM_TOKEN` (required)
+- `HAPPY_PATHS_TEAM_TOKEN` (or `HAPPY_PATHS_TEAM_TOKEN_FILE`) (required)
 - `HAPPY_PATHS_TRACE_ROOTS` (comma-separated; defaults to `.happy-paths`)
 - `HAPPY_PATHS_SHIPPER_STATE_PATH` (defaults to `~/.happy-paths/shipper/state.json`)
 
