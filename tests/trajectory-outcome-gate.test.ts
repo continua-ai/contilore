@@ -49,6 +49,49 @@ describe("trajectory outcome gate", () => {
     expect(issue?.harmful).toBe(false);
   });
 
+  it("classifies eval gate failures as benign probes", () => {
+    const issue = classifyTrajectoryIssue(
+      event({
+        id: "eval-gate-failure",
+        type: "tool_result",
+        payload: {
+          command: "npm run eval:observed-ab",
+          output:
+            "Observed A/B gate summary\n- gate pass: false\n- gate failures:\n  - pair count 0 < 3",
+          isError: true,
+        },
+        metrics: {
+          outcome: "failure",
+        },
+      }),
+    );
+
+    expect(issue).not.toBeNull();
+    expect(issue?.kind).toBe("benign_probe");
+    expect(issue?.harmful).toBe(false);
+  });
+
+  it("classifies gh pr checks with no checks reported as benign probes", () => {
+    const issue = classifyTrajectoryIssue(
+      event({
+        id: "gh-no-checks",
+        type: "tool_result",
+        payload: {
+          command: "gh pr checks 123",
+          output: "no checks reported on the 'my-branch' branch",
+          isError: true,
+        },
+        metrics: {
+          outcome: "failure",
+        },
+      }),
+    );
+
+    expect(issue).not.toBeNull();
+    expect(issue?.kind).toBe("benign_probe");
+    expect(issue?.harmful).toBe(false);
+  });
+
   it("classifies invalid option failures as command mismatch", () => {
     const issue = classifyTrajectoryIssue(
       event({
