@@ -6,6 +6,8 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { buildTrajectoryOutcomeDebugReport } from "./trajectory-outcome-long-horizon-debug.ts";
+
 type JsonRecord = Record<string, unknown>;
 
 type Format = "auto" | "trace" | "pi";
@@ -24,6 +26,9 @@ type ParsedOptions = {
   minTotalLatencyMs: number;
   minToolResultCount: number;
   evalRatio: number;
+  debugOut: string | null;
+  debugMaxFamilies: number;
+  debugMaxPairs: number;
   primaryLane: PrimaryLane;
   minFamilyDisjointPairCount: number;
   maxOverlapRateByEvalFamilies?: number;
@@ -120,6 +125,12 @@ type TrajectoryStrata = {
 };
 
 type TrajectoryPairLike = {
+  id?: string;
+  offEpisodeId?: string;
+  onEpisodeId?: string;
+  offStartedAt?: string;
+  onStartedAt?: string;
+  qualityScore?: number;
   familySignature: string;
   offSessionId: string;
   onSessionId: string;
@@ -213,6 +224,9 @@ function parseArgs(argv: string[]): ParsedOptions {
     minTotalLatencyMs: 5 * 60 * 1000,
     minToolResultCount: 8,
     evalRatio: 0.3,
+    debugOut: null,
+    debugMaxFamilies: 200,
+    debugMaxPairs: 200,
     primaryLane: "family_disjoint_eval",
     minFamilyDisjointPairCount: 20,
     maxOverlapRateByEvalFamilies: undefined,
@@ -273,6 +287,21 @@ function parseArgs(argv: string[]): ParsedOptions {
     }
     if (token === "--eval-ratio") {
       options.evalRatio = normalizeEvalRatio(parseFloatOrUndefined(value));
+      index += 1;
+      continue;
+    }
+    if (token === "--debug-out") {
+      options.debugOut = String(value);
+      index += 1;
+      continue;
+    }
+    if (token === "--debug-max-families") {
+      options.debugMaxFamilies = Math.max(0, parseIntOrUndefined(value) ?? 0);
+      index += 1;
+      continue;
+    }
+    if (token === "--debug-max-pairs") {
+      options.debugMaxPairs = Math.max(0, parseIntOrUndefined(value) ?? 0);
       index += 1;
       continue;
     }
@@ -1236,6 +1265,29 @@ async function main(): Promise<void> {
   const outPath = resolve(process.cwd(), options.out);
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
+
+  if (options.debugOut) {
+    const debugReport = buildTrajectoryOutcomeDebugReport({
+      primaryLane: options.primaryLane,
+      fullEvalEpisodes: fullEvalReport.episodes as Array<Record<string, unknown>>,
+      fullEvalPairs: fullEvalReport.pairs as TrajectoryPairLike[],
+      familyDisjointEpisodes: familyDisjointEvalReport.episodes as Array<
+        Record<string, unknown>
+      >,
+      familyDisjointPairs: familyDisjointEvalReport.pairs as TrajectoryPairLike[],
+      generatedAtUtc: payload.generatedAtUtc,
+      traceRoot,
+      format: options.format,
+      toolName: options.toolName,
+      debugMaxFamilies: options.debugMaxFamilies,
+      debugMaxPairs: options.debugMaxPairs,
+      inferToolSurfaceKey,
+    });
+
+    const debugOutPath = resolve(process.cwd(), options.debugOut);
+    await mkdir(dirname(debugOutPath), { recursive: true });
+    await writeFile(debugOutPath, `${JSON.stringify(debugReport, null, 2)}\n`, "utf-8");
+  }
 
   if (options.json) {
     console.log(JSON.stringify(payload, null, 2));

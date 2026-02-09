@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
@@ -22,6 +23,9 @@ type ParsedOptions = {
   minTotalLatencyMs: number;
   minToolResultCount: number;
   evalRatio: number;
+  debugOut: string | null;
+  debugMaxFamilies: number;
+  debugMaxPairs: number;
   strictNoFamilyOverlap: boolean;
   strict: boolean;
   json: boolean;
@@ -97,6 +101,12 @@ type ObservedStrata = {
 };
 
 type ObservedPairLike = {
+  id?: string;
+  offEpisodeId?: string;
+  onEpisodeId?: string;
+  offStartedAt?: string;
+  onStartedAt?: string;
+  qualityScore?: number;
   familySignature: string;
   offSessionId: string;
   onSessionId: string;
@@ -187,6 +197,9 @@ function parseArgs(argv: string[]): ParsedOptions {
     minTotalLatencyMs: 5 * 60 * 1000,
     minToolResultCount: 8,
     evalRatio: 0.3,
+    debugOut: null,
+    debugMaxFamilies: 200,
+    debugMaxPairs: 200,
     strictNoFamilyOverlap: false,
     strict: false,
     json: false,
@@ -242,6 +255,21 @@ function parseArgs(argv: string[]): ParsedOptions {
     }
     if (token === "--eval-ratio") {
       options.evalRatio = normalizeEvalRatio(parseFloatOrUndefined(value));
+      index += 1;
+      continue;
+    }
+    if (token === "--debug-out") {
+      options.debugOut = String(value);
+      index += 1;
+      continue;
+    }
+    if (token === "--debug-max-families") {
+      options.debugMaxFamilies = Math.max(0, parseIntOrUndefined(value) ?? 0);
+      index += 1;
+      continue;
+    }
+    if (token === "--debug-max-pairs") {
+      options.debugMaxPairs = Math.max(0, parseIntOrUndefined(value) ?? 0);
       index += 1;
       continue;
     }
@@ -832,6 +860,406 @@ function toExitCode(
   return exitCode;
 }
 
+type ObservedAbDebugFamily = {
+  familyId: string;
+  familySignature: string;
+  toolSurface: string;
+  pairCount: number;
+  totals: {
+    retriesOff: number;
+    retriesOn: number;
+    wallTimeOffMs: number;
+    wallTimeOnMs: number;
+    tokenCountOff: number;
+    tokenCountOn: number;
+    tokenProxyOff: number;
+    tokenProxyOn: number;
+    costOffUsd: number;
+    costOnUsd: number;
+  };
+  rates: {
+    repeatedDeadEndRateOff: number;
+    repeatedDeadEndRateOn: number;
+  };
+  deltas: {
+    relativeRepeatedDeadEndRateReduction: number;
+    relativeWallTimeReduction: number;
+    relativeTokenCountReduction: number;
+    relativeTokenProxyReduction: number;
+  };
+};
+
+type ObservedAbDebugPair = {
+  pairId: string;
+  familyId: string;
+  familySignature: string;
+  toolSurface: string;
+  offSessionId: string;
+  onSessionId: string;
+  offStartedAt: string | null;
+  onStartedAt: string | null;
+  retriesOff: number;
+  retriesOn: number;
+  wallTimeOffMs: number;
+  wallTimeOnMs: number;
+  tokenCountOff: number;
+  tokenCountOn: number;
+  tokenProxyOff: number;
+  tokenProxyOn: number;
+  costOffUsd: number;
+  costOnUsd: number;
+  successOff: boolean;
+  successOn: boolean;
+  qualityScore: number | null;
+  deltas: {
+    retriesDelta: number;
+    wallTimeDeltaMs: number;
+    tokenCountDelta: number;
+    tokenProxyDelta: number;
+    costDeltaUsd: number;
+  };
+};
+
+type ObservedAbDebugReport = {
+  schemaVersion: 1;
+  generatedAtUtc: string;
+  traceRoot: string;
+  format: Format;
+  toolName: string;
+  thresholds: ObservedThresholdsLike;
+  pairing: Record<string, unknown>;
+  aggregate: ObservedStratumAggregate;
+  familyCount: number;
+  pairCount: number;
+  families: ObservedAbDebugFamily[];
+  topFamiliesByPairCount: ObservedAbDebugFamily[];
+  worstFamiliesByDeadEndReduction: ObservedAbDebugFamily[];
+  worstFamiliesByWallTimeReduction: ObservedAbDebugFamily[];
+  worstFamiliesByTokenCountReduction: ObservedAbDebugFamily[];
+  worstPairsByRetriesDelta: ObservedAbDebugPair[];
+  worstPairsByWallTimeDelta: ObservedAbDebugPair[];
+  worstPairsByTokenCountDelta: ObservedAbDebugPair[];
+};
+
+function sha256Hex(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+function sanitizeDebugText(text: string): string {
+  return text
+    .replace(/authorization:\s*bearer\s+[^\s"']+/gi, "authorization: bearer <redacted>")
+    .replace(/\b(api[_-]?key|token|secret|password)=\S+/gi, "$1=<redacted>")
+    .replace(/\/Users\/[^/\s]+/g, "/Users/<user>")
+    .replace(/\/home\/[^/\s]+/g, "/home/<user>");
+}
+
+function debugFamilyId(familySignature: string): string {
+  return sha256Hex(familySignature).slice(0, 16);
+}
+
+function safeRelativeReduction(off: number, on: number): number {
+  if (off <= 0) {
+    return on <= 0 ? 0 : -1;
+  }
+  return (off - on) / off;
+}
+
+function takeLimited<T>(items: T[], limit: number): T[] {
+  if (limit <= 0 || items.length <= limit) {
+    return items;
+  }
+  return items.slice(0, limit);
+}
+
+function buildObservedAbDebugReport({
+  pairs,
+  thresholds,
+  pairing,
+  aggregate,
+  generatedAtUtc,
+  traceRoot,
+  format,
+  toolName,
+  debugMaxFamilies,
+  debugMaxPairs,
+}: {
+  pairs: ObservedPairLike[];
+  thresholds: ObservedThresholdsLike;
+  pairing: Record<string, unknown>;
+  aggregate: ObservedStratumAggregate;
+  generatedAtUtc: string;
+  traceRoot: string;
+  format: Format;
+  toolName: string;
+  debugMaxFamilies: number;
+  debugMaxPairs: number;
+}): ObservedAbDebugReport {
+  const debugPairs: ObservedAbDebugPair[] = pairs.map((pair, index) => {
+    const rawFamilySignature = pair.familySignature;
+    const familyId = debugFamilyId(rawFamilySignature);
+    const familySignature = sanitizeDebugText(rawFamilySignature).slice(0, 240);
+    const toolSurface = inferToolSurfaceKey(rawFamilySignature);
+    const pairIdSource =
+      typeof pair.id === "string" && pair.id.trim()
+        ? pair.id
+        : `${rawFamilySignature}-${index + 1}`;
+    const pairId = sha256Hex(pairIdSource).slice(0, 16);
+
+    const offStartedAt =
+      typeof pair.offStartedAt === "string" && pair.offStartedAt.trim()
+        ? pair.offStartedAt
+        : null;
+    const onStartedAt =
+      typeof pair.onStartedAt === "string" && pair.onStartedAt.trim()
+        ? pair.onStartedAt
+        : null;
+
+    const retriesDelta = pair.retriesOn - pair.retriesOff;
+    const wallTimeDeltaMs = pair.wallTimeOnMs - pair.wallTimeOffMs;
+    const tokenCountDelta = pair.tokenCountOn - pair.tokenCountOff;
+    const tokenProxyDelta = pair.tokenProxyOn - pair.tokenProxyOff;
+    const costDeltaUsd = pair.costOnUsd - pair.costOffUsd;
+
+    return {
+      pairId,
+      familyId,
+      familySignature,
+      toolSurface,
+      offSessionId: pair.offSessionId,
+      onSessionId: pair.onSessionId,
+      offStartedAt,
+      onStartedAt,
+      retriesOff: pair.retriesOff,
+      retriesOn: pair.retriesOn,
+      wallTimeOffMs: pair.wallTimeOffMs,
+      wallTimeOnMs: pair.wallTimeOnMs,
+      tokenCountOff: pair.tokenCountOff,
+      tokenCountOn: pair.tokenCountOn,
+      tokenProxyOff: pair.tokenProxyOff,
+      tokenProxyOn: pair.tokenProxyOn,
+      costOffUsd: pair.costOffUsd,
+      costOnUsd: pair.costOnUsd,
+      successOff: pair.successOff,
+      successOn: pair.successOn,
+      qualityScore:
+        typeof pair.qualityScore === "number" && Number.isFinite(pair.qualityScore)
+          ? pair.qualityScore
+          : null,
+      deltas: {
+        retriesDelta,
+        wallTimeDeltaMs,
+        tokenCountDelta,
+        tokenProxyDelta,
+        costDeltaUsd,
+      },
+    };
+  });
+
+  type FamilyTotals = ObservedAbDebugFamily["totals"] & { pairCount: number };
+
+  const totalsByFamily = new Map<string, FamilyTotals>();
+  const signatureByFamily = new Map<
+    string,
+    { signature: string; toolSurface: string }
+  >();
+
+  for (const pair of debugPairs) {
+    const existing = totalsByFamily.get(pair.familyId);
+    const next: FamilyTotals = existing ?? {
+      pairCount: 0,
+      retriesOff: 0,
+      retriesOn: 0,
+      wallTimeOffMs: 0,
+      wallTimeOnMs: 0,
+      tokenCountOff: 0,
+      tokenCountOn: 0,
+      tokenProxyOff: 0,
+      tokenProxyOn: 0,
+      costOffUsd: 0,
+      costOnUsd: 0,
+    };
+
+    next.pairCount += 1;
+    next.retriesOff += pair.retriesOff;
+    next.retriesOn += pair.retriesOn;
+    next.wallTimeOffMs += pair.wallTimeOffMs;
+    next.wallTimeOnMs += pair.wallTimeOnMs;
+    next.tokenCountOff += pair.tokenCountOff;
+    next.tokenCountOn += pair.tokenCountOn;
+    next.tokenProxyOff += pair.tokenProxyOff;
+    next.tokenProxyOn += pair.tokenProxyOn;
+    next.costOffUsd += pair.costOffUsd;
+    next.costOnUsd += pair.costOnUsd;
+
+    totalsByFamily.set(pair.familyId, next);
+
+    if (!signatureByFamily.has(pair.familyId)) {
+      signatureByFamily.set(pair.familyId, {
+        signature: pair.familySignature,
+        toolSurface: pair.toolSurface,
+      });
+    }
+  }
+
+  const families: ObservedAbDebugFamily[] = [];
+  for (const [familyId, totals] of totalsByFamily.entries()) {
+    const signature = signatureByFamily.get(familyId)?.signature ?? familyId;
+    const toolSurface = signatureByFamily.get(familyId)?.toolSurface ?? "other";
+
+    const repeatedDeadEndRateOff =
+      totals.pairCount <= 0 ? 0 : totals.retriesOff / totals.pairCount;
+    const repeatedDeadEndRateOn =
+      totals.pairCount <= 0 ? 0 : totals.retriesOn / totals.pairCount;
+
+    families.push({
+      familyId,
+      familySignature: signature,
+      toolSurface,
+      pairCount: totals.pairCount,
+      totals: {
+        retriesOff: totals.retriesOff,
+        retriesOn: totals.retriesOn,
+        wallTimeOffMs: totals.wallTimeOffMs,
+        wallTimeOnMs: totals.wallTimeOnMs,
+        tokenCountOff: totals.tokenCountOff,
+        tokenCountOn: totals.tokenCountOn,
+        tokenProxyOff: totals.tokenProxyOff,
+        tokenProxyOn: totals.tokenProxyOn,
+        costOffUsd: totals.costOffUsd,
+        costOnUsd: totals.costOnUsd,
+      },
+      rates: {
+        repeatedDeadEndRateOff,
+        repeatedDeadEndRateOn,
+      },
+      deltas: {
+        relativeRepeatedDeadEndRateReduction: safeRelativeReduction(
+          repeatedDeadEndRateOff,
+          repeatedDeadEndRateOn,
+        ),
+        relativeWallTimeReduction: safeRelativeReduction(
+          totals.wallTimeOffMs,
+          totals.wallTimeOnMs,
+        ),
+        relativeTokenCountReduction: safeRelativeReduction(
+          totals.tokenCountOff,
+          totals.tokenCountOn,
+        ),
+        relativeTokenProxyReduction: safeRelativeReduction(
+          totals.tokenProxyOff,
+          totals.tokenProxyOn,
+        ),
+      },
+    });
+  }
+
+  const familiesByPairCount = [...families].sort((left, right) => {
+    if (left.pairCount !== right.pairCount) {
+      return right.pairCount - left.pairCount;
+    }
+    return left.familyId < right.familyId ? -1 : 1;
+  });
+
+  const familiesByDeadEnd = [...families].sort((left, right) => {
+    const diff =
+      left.deltas.relativeRepeatedDeadEndRateReduction -
+      right.deltas.relativeRepeatedDeadEndRateReduction;
+    if (diff !== 0) {
+      return diff;
+    }
+    if (left.pairCount !== right.pairCount) {
+      return right.pairCount - left.pairCount;
+    }
+    return left.familyId < right.familyId ? -1 : 1;
+  });
+
+  const familiesByWallTime = [...families].sort((left, right) => {
+    const diff =
+      left.deltas.relativeWallTimeReduction - right.deltas.relativeWallTimeReduction;
+    if (diff !== 0) {
+      return diff;
+    }
+    if (left.pairCount !== right.pairCount) {
+      return right.pairCount - left.pairCount;
+    }
+    return left.familyId < right.familyId ? -1 : 1;
+  });
+
+  const familiesByTokenCount = [...families].sort((left, right) => {
+    const diff =
+      left.deltas.relativeTokenCountReduction -
+      right.deltas.relativeTokenCountReduction;
+    if (diff !== 0) {
+      return diff;
+    }
+    if (left.pairCount !== right.pairCount) {
+      return right.pairCount - left.pairCount;
+    }
+    return left.familyId < right.familyId ? -1 : 1;
+  });
+
+  const pairsByRetriesDelta = [...debugPairs].sort((left, right) => {
+    if (left.deltas.retriesDelta !== right.deltas.retriesDelta) {
+      return right.deltas.retriesDelta - left.deltas.retriesDelta;
+    }
+    return left.pairId < right.pairId ? -1 : 1;
+  });
+
+  const pairsByWallTimeDelta = [...debugPairs].sort((left, right) => {
+    if (left.deltas.wallTimeDeltaMs !== right.deltas.wallTimeDeltaMs) {
+      return right.deltas.wallTimeDeltaMs - left.deltas.wallTimeDeltaMs;
+    }
+    return left.pairId < right.pairId ? -1 : 1;
+  });
+
+  const pairsByTokenCountDelta = [...debugPairs].sort((left, right) => {
+    if (left.deltas.tokenCountDelta !== right.deltas.tokenCountDelta) {
+      return right.deltas.tokenCountDelta - left.deltas.tokenCountDelta;
+    }
+    return left.pairId < right.pairId ? -1 : 1;
+  });
+
+  const familyLimit =
+    debugMaxFamilies <= 0 ? familiesByPairCount.length : debugMaxFamilies;
+  const pairLimit = debugMaxPairs <= 0 ? debugPairs.length : debugMaxPairs;
+
+  return {
+    schemaVersion: 1,
+    generatedAtUtc,
+    traceRoot,
+    format,
+    toolName,
+    thresholds,
+    pairing,
+    aggregate,
+    familyCount: families.length,
+    pairCount: debugPairs.length,
+    families: takeLimited(familiesByPairCount, familyLimit),
+    topFamiliesByPairCount: takeLimited(familiesByPairCount, Math.min(25, familyLimit)),
+    worstFamiliesByDeadEndReduction: takeLimited(
+      familiesByDeadEnd,
+      Math.min(25, familyLimit),
+    ),
+    worstFamiliesByWallTimeReduction: takeLimited(
+      familiesByWallTime,
+      Math.min(25, familyLimit),
+    ),
+    worstFamiliesByTokenCountReduction: takeLimited(
+      familiesByTokenCount,
+      Math.min(25, familyLimit),
+    ),
+    worstPairsByRetriesDelta: takeLimited(pairsByRetriesDelta, Math.min(50, pairLimit)),
+    worstPairsByWallTimeDelta: takeLimited(
+      pairsByWallTimeDelta,
+      Math.min(50, pairLimit),
+    ),
+    worstPairsByTokenCountDelta: takeLimited(
+      pairsByTokenCountDelta,
+      Math.min(50, pairLimit),
+    ),
+  };
+}
+
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const distPath = resolve(process.cwd(), "dist/index.js");
@@ -1017,6 +1445,25 @@ async function main(): Promise<void> {
   const outPath = resolve(process.cwd(), options.out);
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf-8");
+
+  if (options.debugOut) {
+    const debugReport = buildObservedAbDebugReport({
+      pairs: observedReport.pairs as ObservedPairLike[],
+      thresholds: observedReport.thresholds as ObservedThresholdsLike,
+      pairing: observedReport.pairing as Record<string, unknown>,
+      aggregate: observedReport.aggregate as ObservedStratumAggregate,
+      generatedAtUtc: report.generatedAtUtc,
+      traceRoot,
+      format: options.format,
+      toolName: options.toolName,
+      debugMaxFamilies: options.debugMaxFamilies,
+      debugMaxPairs: options.debugMaxPairs,
+    });
+
+    const debugOutPath = resolve(process.cwd(), options.debugOut);
+    await mkdir(dirname(debugOutPath), { recursive: true });
+    await writeFile(debugOutPath, `${JSON.stringify(debugReport, null, 2)}\n`, "utf-8");
+  }
 
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));
