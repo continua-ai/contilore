@@ -22,6 +22,7 @@ type ParsedOptions = {
   minTotalLatencyMs: number;
   minToolResultCount: number;
   evalRatio: number;
+  familyDisjoint: boolean;
   sampleSize: number;
   maxOutputChars: number;
   seed: number;
@@ -138,6 +139,7 @@ function parseArgs(argv: string[]): ParsedOptions {
     minTotalLatencyMs: 5 * 60 * 1000,
     minToolResultCount: 8,
     evalRatio: 0.3,
+    familyDisjoint: false,
     sampleSize: 240,
     maxOutputChars: 240,
     seed: 31,
@@ -212,6 +214,10 @@ function parseArgs(argv: string[]): ParsedOptions {
     if (token === "--out") {
       options.out = String(value);
       index += 1;
+      continue;
+    }
+    if (token === "--family-disjoint") {
+      options.familyDisjoint = true;
       continue;
     }
     if (token === "--json") {
@@ -598,6 +604,7 @@ async function main(): Promise<void> {
   }
 
   const {
+    buildFamilyDisjointEvalSlice,
     buildTraceEventsFromPiSessionRecords,
     extractTrajectoryOutcomeEpisodes,
     filterLongHorizonSessions,
@@ -685,9 +692,16 @@ async function main(): Promise<void> {
   });
 
   const holdout = splitSessionsChronologically(longHorizonSessions, options.evalRatio);
+  const trainSessionIds = new Set(
+    holdout.trainSessions.map((session) => session.sessionId),
+  );
   const evalSessionIds = new Set(
     holdout.evalSessions.map((session) => session.sessionId),
   );
+
+  const trainEvents = [...sessionEnvelopes.values()]
+    .filter((envelope) => trainSessionIds.has(envelope.sessionId))
+    .flatMap((envelope) => envelope.events);
 
   const evalEvents = [...sessionEnvelopes.values()]
     .filter((envelope) => evalSessionIds.has(envelope.sessionId))
@@ -702,12 +716,36 @@ async function main(): Promise<void> {
     eventById.set(id, event);
   }
 
+  const trainEpisodesRaw = extractTrajectoryOutcomeEpisodes(trainEvents) as Array<
+    Record<string, unknown>
+  >;
+
   const evalEpisodesRaw = extractTrajectoryOutcomeEpisodes(evalEvents) as Array<
     Record<string, unknown>
   >;
 
+  let episodesForSample = evalEpisodesRaw;
+  let familyDisjointStats: Record<string, unknown> | null = null;
+  if (options.familyDisjoint) {
+    const disjointSlice = buildFamilyDisjointEvalSlice(
+      trainEpisodesRaw,
+      evalEpisodesRaw,
+    ) as Record<string, unknown>;
+
+    const disjointEpisodes = Array.isArray(disjointSlice.episodes)
+      ? (disjointSlice.episodes as Array<Record<string, unknown>>)
+      : [];
+
+    episodesForSample = disjointEpisodes;
+
+    familyDisjointStats =
+      disjointSlice.stats && typeof disjointSlice.stats === "object"
+        ? (disjointSlice.stats as Record<string, unknown>)
+        : null;
+  }
+
   const sampledEpisodes = stratifiedSample(
-    evalEpisodesRaw,
+    episodesForSample,
     options.sampleSize,
     options.seed,
   );
@@ -735,13 +773,25 @@ async function main(): Promise<void> {
       evalRatio: holdout.evalRatio,
       totalSessionsParsed: sessionSummaries.length,
       totalLongHorizonSessions: longHorizonSessions.length,
+      trainSessionCount: holdout.trainSessions.length,
       evalSessionCount: holdout.evalSessions.length,
+      trainEpisodeCount: trainEpisodesRaw.length,
       evalEpisodeCount: evalEpisodesRaw.length,
+      familyDisjoint: options.familyDisjoint
+        ? {
+            enabled: true,
+            disjointEpisodeCount: episodesForSample.length,
+            stats: familyDisjointStats,
+          }
+        : {
+            enabled: false,
+          },
     },
     sample: {
       requested: options.sampleSize,
       actual: rows.length,
       seed: options.seed,
+      episodePoolCount: episodesForSample.length,
       predictedIssueKindCounts: sampleStats(rows),
     },
     items: rows,

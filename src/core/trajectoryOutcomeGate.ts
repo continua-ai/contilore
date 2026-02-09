@@ -216,6 +216,16 @@ const PROBE_COMMAND_PREFIXES = new Set([
 const PROBE_FAILURE_PATTERN =
   /(\b404\b|not found|no matches? found|no result|does not exist|command exited with code 1|jq: (?:parse )?error|parse error:|invalid numeric literal)/i;
 
+const EVAL_GATE_COMMAND_PATTERN =
+  /\b(npm\s+run\s+eval:|tsx\s+scripts\/run-(?:observed-ab|trajectory-outcome)-(?:gate|long-horizon)\.ts)\b/i;
+
+const EVAL_GATE_OUTPUT_PATTERN =
+  /(gate pass:\s*false|gate failures:|family-disjoint pair constraint:)/i;
+
+const GH_NO_CHECKS_OUTPUT_PATTERN = /no checks reported on the '.*' branch/i;
+
+const ANSI_SGR_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+
 const TRANSIENT_EXTERNAL_PATTERN =
   /(timed out|timeout|connection reset|connection refused|temporarily unavailable|rate limit|429\b|\b50[234]\b|network is unreachable|tls handshake timeout|upstream)/i;
 
@@ -338,17 +348,22 @@ function commandFromPayload(event: TraceEvent): string {
 }
 
 function textFromPayload(event: TraceEvent): string {
-  const text = event.payload?.text;
-  if (typeof text === "string" && text.trim()) {
-    return text;
-  }
+  const payload = event.payload ?? {};
 
-  const output = event.payload?.output;
-  if (typeof output === "string" && output.trim()) {
-    return output;
-  }
+  const candidates: unknown[] = [
+    payload.output,
+    payload.stderr,
+    payload.stdout,
+    payload.text,
+    payload.content,
+    payload.error,
+    payload.message,
+  ];
 
-  return "";
+  const firstText = candidates.find(
+    (item) => typeof item === "string" && item.trim().length > 0,
+  );
+  return typeof firstText === "string" ? firstText : "";
 }
 
 function firstLine(text: string): string {
@@ -458,8 +473,25 @@ function isLikelyContextPermissionFailure(command: string, output: string): bool
   return MISSING_CONTEXT_AUTH_COMMAND_PATTERN.test(command);
 }
 
+function isLikelyEvalGateFailure(command: string, output: string): boolean {
+  if (!EVAL_GATE_COMMAND_PATTERN.test(command)) {
+    return false;
+  }
+
+  return EVAL_GATE_OUTPUT_PATTERN.test(output);
+}
+
+function isLikelyGhNoChecksFailure(command: string, output: string): boolean {
+  if (!/\bgh\s+pr\s+checks\b/i.test(command)) {
+    return false;
+  }
+
+  return GH_NO_CHECKS_OUTPUT_PATTERN.test(output);
+}
+
 function normalizeClassificationText(input: string): string {
   return input
+    .replace(ANSI_SGR_PATTERN, "")
     .toLowerCase()
     .replace(/[0-9a-f]{8,}/g, "<hex>")
     .replace(/\s+/g, " ")
@@ -487,6 +519,26 @@ export function classifyTrajectoryIssue(event: TraceEvent): TrajectoryIssue | nu
       false,
       0.84,
       "Transient external dependency failure (timeout/network/rate limit).",
+    );
+  }
+
+  if (isLikelyEvalGateFailure(command, output)) {
+    return asClassifiedIssue(
+      event,
+      "benign_probe",
+      false,
+      0.8,
+      "Evaluation gate failure (threshold miss / insufficient power); treat as benign probe.",
+    );
+  }
+
+  if (isLikelyGhNoChecksFailure(command, output)) {
+    return asClassifiedIssue(
+      event,
+      "benign_probe",
+      false,
+      0.78,
+      "GitHub checks not yet reported for branch; treat as benign probe.",
     );
   }
 
