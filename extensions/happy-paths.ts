@@ -6,7 +6,7 @@ import {
   type TraceScope,
   createLocalLearningLoop,
   createPiTraceExtension,
-} from "@continua-ai/happy-paths";
+} from "../dist/index.js";
 
 type PiExtensionContext = {
   ui?: {
