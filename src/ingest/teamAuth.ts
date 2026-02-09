@@ -1,5 +1,5 @@
 export interface TeamAuth {
-  resolveTeamId(token: string): string | null;
+  resolveTeamId(token: string): Promise<string | null>;
 }
 
 export interface TeamTokenConfig {
@@ -9,7 +9,7 @@ export interface TeamTokenConfig {
 
 export function createSingleTeamAuth(config: TeamTokenConfig): TeamAuth {
   return {
-    resolveTeamId: (token) => (token === config.token ? config.teamId : null),
+    resolveTeamId: async (token) => (token === config.token ? config.teamId : null),
   };
 }
 
@@ -20,7 +20,113 @@ export function createMultiTeamAuth(configs: TeamTokenConfig[]): TeamAuth {
   }
 
   return {
-    resolveTeamId: (token) => tokenToTeam.get(token) ?? null,
+    resolveTeamId: async (token) => tokenToTeam.get(token) ?? null,
+  };
+}
+
+export interface RemoteTeamAuthConfig {
+  url: string;
+  timeoutMs?: number;
+  cacheTtlMs?: number;
+  negativeCacheTtlMs?: number;
+}
+
+class RemoteTeamAuthError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+function parseRemoteTeamId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const teamId = (payload as { teamId?: unknown }).teamId;
+  if (typeof teamId === "string" && teamId.trim()) {
+    return teamId.trim();
+  }
+
+  const teamIdSnake = (payload as { team_id?: unknown }).team_id;
+  if (typeof teamIdSnake === "string" && teamIdSnake.trim()) {
+    return teamIdSnake.trim();
+  }
+
+  return null;
+}
+
+export function createRemoteTeamAuth(config: RemoteTeamAuthConfig): TeamAuth {
+  const url = config.url.trim();
+  if (!url) {
+    throw new Error("RemoteTeamAuthConfig.url must be non-empty.");
+  }
+
+  const timeoutMs = config.timeoutMs ?? 2_000;
+  const cacheTtlMs = config.cacheTtlMs ?? 5 * 60_000;
+  const negativeCacheTtlMs = config.negativeCacheTtlMs ?? 30_000;
+
+  const cache = new Map<string, { teamId: string | null; expiresAtMs: number }>();
+
+  return {
+    resolveTeamId: async (token) => {
+      const nowMs = Date.now();
+      const cached = cache.get(token);
+      if (cached && cached.expiresAtMs > nowMs) {
+        return cached.teamId;
+      }
+
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            accept: "application/json",
+          },
+          signal: controller.signal,
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          cache.set(token, {
+            teamId: null,
+            expiresAtMs: nowMs + negativeCacheTtlMs,
+          });
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new RemoteTeamAuthError(
+            `Remote team auth failed with status ${response.status}`,
+            503,
+          );
+        }
+
+        const payload = (await response.json()) as unknown;
+        const teamId = parseRemoteTeamId(payload);
+        if (!teamId) {
+          throw new RemoteTeamAuthError(
+            "Remote team auth returned invalid payload.",
+            503,
+          );
+        }
+
+        cache.set(token, { teamId, expiresAtMs: nowMs + cacheTtlMs });
+        return teamId;
+      } catch (error) {
+        if (error instanceof RemoteTeamAuthError) {
+          throw error;
+        }
+
+        throw new RemoteTeamAuthError("Remote team auth request failed.", 503);
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
+    },
   };
 }
 
@@ -81,7 +187,28 @@ function parseTeamTokensJson(raw: string): TeamTokenConfig[] {
   return configs;
 }
 
+function parseNumber(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export function loadTeamAuthFromEnv(env: NodeJS.ProcessEnv): LoadTeamAuthFromEnvResult {
+  const remoteAuthUrl = env.HAPPY_PATHS_TEAM_AUTH_URL;
+  if (remoteAuthUrl?.trim()) {
+    const auth = createRemoteTeamAuth({
+      url: remoteAuthUrl,
+      timeoutMs: parseNumber(env.HAPPY_PATHS_TEAM_AUTH_TIMEOUT_MS),
+      cacheTtlMs: parseNumber(env.HAPPY_PATHS_TEAM_AUTH_CACHE_TTL_MS),
+      negativeCacheTtlMs: parseNumber(env.HAPPY_PATHS_TEAM_AUTH_NEGATIVE_CACHE_TTL_MS),
+    });
+
+    return { auth, teamCount: 0 };
+  }
+
   const multiTenant = env.HAPPY_PATHS_TEAM_TOKENS_JSON;
   if (multiTenant?.trim()) {
     const configs = parseTeamTokensJson(multiTenant);
@@ -96,7 +223,7 @@ export function loadTeamAuthFromEnv(env: NodeJS.ProcessEnv): LoadTeamAuthFromEnv
 
   if (!rawToken || !rawToken.trim()) {
     throw new Error(
-      "Missing HAPPY_PATHS_TEAM_TOKEN (or HAPPY_PATHS_TEAM_TOKENS_JSON).",
+      "Missing HAPPY_PATHS_TEAM_TOKEN (or HAPPY_PATHS_TEAM_TOKENS_JSON / HAPPY_PATHS_TEAM_AUTH_URL).",
     );
   }
 

@@ -157,9 +157,17 @@ Environment variables:
 - GCS storage (optional):
   - `HAPPY_PATHS_INGEST_GCS_BUCKET` (enables GCS-backed storage)
   - `HAPPY_PATHS_INGEST_GCS_PREFIX` (optional key prefix)
-- Auth:
-  - `HAPPY_PATHS_TEAM_ID` + `HAPPY_PATHS_TEAM_TOKEN` (single-tenant)
-    - OR `HAPPY_PATHS_TEAM_TOKENS_JSON` (multi-tenant token->team mapping)
+- Auth (choose one):
+  - Remote auth (recommended for hosted multi-tenant):
+    - `HAPPY_PATHS_TEAM_AUTH_URL` (expects `Authorization: Bearer <token>` and returns JSON containing `teamId`)
+    - Optional tuning:
+      - `HAPPY_PATHS_TEAM_AUTH_TIMEOUT_MS`
+      - `HAPPY_PATHS_TEAM_AUTH_CACHE_TTL_MS`
+      - `HAPPY_PATHS_TEAM_AUTH_NEGATIVE_CACHE_TTL_MS`
+  - Static multi-tenant mapping:
+    - `HAPPY_PATHS_TEAM_TOKENS_JSON` (array of `{teamId, token}`)
+  - Static single-tenant:
+    - `HAPPY_PATHS_TEAM_ID` + `HAPPY_PATHS_TEAM_TOKEN`
 - Limits:
   - `HAPPY_PATHS_MAX_BODY_BYTES` (defaults to 50MB)
 
