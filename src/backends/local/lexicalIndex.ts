@@ -1,6 +1,14 @@
 import type { TraceIndex } from "../../core/interfaces.js";
 import type { IndexedDocument, SearchQuery, SearchResult } from "../../core/types.js";
 
+export interface InMemoryLexicalIndexOptions {
+  bm25K1?: number;
+  bm25B?: number;
+}
+
+const DEFAULT_BM25_K1 = 1.2;
+const DEFAULT_BM25_B = 0.75;
+
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
@@ -28,9 +36,49 @@ function metadataMatches(
   return true;
 }
 
+function bm25InverseDocumentFrequency(
+  totalDocs: number,
+  documentFrequency: number,
+): number {
+  return Math.log(
+    1 + (totalDocs - documentFrequency + 0.5) / (documentFrequency + 0.5),
+  );
+}
+
+function bm25TermWeight(
+  termFrequency: number,
+  documentLength: number,
+  averageDocumentLength: number,
+  k1: number,
+  b: number,
+): number {
+  const safeAverageDocumentLength = Math.max(averageDocumentLength, 1);
+  const normalizedDocumentLength =
+    1 - b + (b * documentLength) / safeAverageDocumentLength;
+
+  const numerator = termFrequency * (k1 + 1);
+  const denominator = termFrequency + k1 * normalizedDocumentLength;
+  if (denominator <= 0) {
+    return 0;
+  }
+
+  return numerator / denominator;
+}
+
 export class InMemoryLexicalIndex implements TraceIndex {
   private readonly documents = new Map<string, IndexedDocument>();
   private readonly postings = new Map<string, Map<string, number>>();
+  private readonly documentLengths = new Map<string, number>();
+
+  private totalDocumentLength = 0;
+
+  private readonly bm25K1: number;
+  private readonly bm25B: number;
+
+  constructor(options: InMemoryLexicalIndexOptions = {}) {
+    this.bm25K1 = options.bm25K1 ?? DEFAULT_BM25_K1;
+    this.bm25B = options.bm25B ?? DEFAULT_BM25_B;
+  }
 
   async upsert(document: IndexedDocument): Promise<void> {
     const existing = this.documents.get(document.id);
@@ -51,21 +99,29 @@ export class InMemoryLexicalIndex implements TraceIndex {
   async search(query: SearchQuery): Promise<SearchResult[]> {
     const limit = query.limit ?? 10;
     const queryTerms = tokenize(query.text);
-    if (queryTerms.length === 0) {
+    if (queryTerms.length === 0 || this.documents.size === 0) {
       return [];
     }
 
-    const scores = new Map<string, number>();
-    const totalDocs = Math.max(this.documents.size, 1);
-
+    const queryTermCounts = new Map<string, number>();
     for (const term of queryTerms) {
+      queryTermCounts.set(term, (queryTermCounts.get(term) ?? 0) + 1);
+    }
+
+    const scores = new Map<string, number>();
+    const totalDocs = this.documents.size;
+    const averageDocumentLength = this.totalDocumentLength / totalDocs;
+
+    for (const [term, queryTermFrequency] of queryTermCounts) {
       const docsForTerm = this.postings.get(term);
       if (!docsForTerm) {
         continue;
       }
 
-      const docFrequency = docsForTerm.size;
-      const inverseDocFrequency = Math.log((1 + totalDocs) / (1 + docFrequency)) + 1;
+      const inverseDocFrequency = bm25InverseDocumentFrequency(
+        totalDocs,
+        docsForTerm.size,
+      );
 
       for (const [docId, termFrequency] of docsForTerm) {
         const document = this.documents.get(docId);
@@ -77,8 +133,19 @@ export class InMemoryLexicalIndex implements TraceIndex {
           continue;
         }
 
+        const documentLength = this.documentLengths.get(docId) ?? 0;
+        const termScore =
+          inverseDocFrequency *
+          bm25TermWeight(
+            termFrequency,
+            documentLength,
+            averageDocumentLength,
+            this.bm25K1,
+            this.bm25B,
+          );
+
         const previous = scores.get(docId) ?? 0;
-        scores.set(docId, previous + termFrequency * inverseDocFrequency);
+        scores.set(docId, previous + termScore * queryTermFrequency);
       }
     }
 
@@ -100,9 +167,15 @@ export class InMemoryLexicalIndex implements TraceIndex {
 
   private addPostings(document: IndexedDocument): void {
     const termCounts = new Map<string, number>();
+    let documentLength = 0;
+
     for (const term of tokenize(document.text)) {
       termCounts.set(term, (termCounts.get(term) ?? 0) + 1);
+      documentLength += 1;
     }
+
+    this.documentLengths.set(document.id, documentLength);
+    this.totalDocumentLength += documentLength;
 
     for (const [term, frequency] of termCounts) {
       const docsForTerm = this.postings.get(term) ?? new Map<string, number>();
@@ -112,11 +185,17 @@ export class InMemoryLexicalIndex implements TraceIndex {
   }
 
   private removePostings(document: IndexedDocument): void {
-    for (const term of tokenize(document.text)) {
+    const existingLength = this.documentLengths.get(document.id) ?? 0;
+    this.totalDocumentLength = Math.max(0, this.totalDocumentLength - existingLength);
+    this.documentLengths.delete(document.id);
+
+    const uniqueTerms = new Set(tokenize(document.text));
+    for (const term of uniqueTerms) {
       const docsForTerm = this.postings.get(term);
       if (!docsForTerm) {
         continue;
       }
+
       docsForTerm.delete(document.id);
       if (docsForTerm.size === 0) {
         this.postings.delete(term);

@@ -27,6 +27,31 @@ describe("InMemoryLexicalIndex", () => {
     expect(first?.document.id).toBe("1");
   });
 
+  it("prefers fuller lexical matches over single-term repetition", async () => {
+    const index = new InMemoryLexicalIndex();
+
+    await index.upsertMany([
+      {
+        id: "full-match",
+        sourceEventId: "evt-full",
+        text: "traceback fix applied",
+        metadata: { scope: "team" },
+      },
+      {
+        id: "repeated",
+        sourceEventId: "evt-repeated",
+        text: new Array(80).fill("traceback").join(" "),
+        metadata: { scope: "team" },
+      },
+    ]);
+
+    const hits = await index.search({ text: "traceback fix", limit: 2 });
+
+    expect(hits).toHaveLength(2);
+    const first = hits.at(0);
+    expect(first?.document.id).toBe("full-match");
+  });
+
   it("applies metadata filters", async () => {
     const index = new InMemoryLexicalIndex();
 
